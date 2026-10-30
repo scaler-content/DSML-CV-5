@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Computer Vision 5 post read</title>
+<meta name="description" content="Computer Vision 5 post read: image similarity with Inception, ResNet embeddings, PCA and Annoy.">
+<style>
+:root{
+  --v950:#1e0b4b;--v900:#2e1065;--v800:#4c1d95;--v700:#6d28d9;--v600:#7c3aed;--v500:#8b5cf6;
+  --v400:#a78bfa;--v300:#c4b5fd;--v200:#ddd6fe;--v100:#ede9fe;--v50:#f5f3ff;
+  --ink:#1f1637;--muted:#5a4f78;--line:#e4dcfa;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+body{margin:0;background:#fff;color:var(--ink);font:17px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:Georgia,"Iowan Old Style","Times New Roman",serif;line-height:1.2;color:var(--v900);margin:0}
+h2{font-size:clamp(1.7rem,3.4vw,2.3rem);margin:0 0 .7rem}
+h3{font-size:1.35rem;margin:2.2rem 0 .5rem}
+h4{font-size:1.02rem;margin:1.2rem 0 .3rem;color:var(--v800)}
+p{margin:.75rem 0}
+p,ul,ol{max-width:70ch}
+li{margin:.3rem 0}
+a{color:var(--v700)}
+code{font:.88em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--v100);color:var(--v800);padding:.1em .35em;border-radius:5px}
+:focus-visible{outline:3px solid var(--v500);outline-offset:2px;border-radius:4px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:-999px;top:8px;background:var(--v900);color:#fff;padding:.5rem 1rem;z-index:100;border-radius:8px}
+.skip:focus{left:8px}
+
+/* header */
+.top{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .in{max-width:1040px;margin:0 auto;padding:.6rem 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font:700 1.05rem Georgia,serif;color:var(--v900);text-decoration:none;display:flex;align-items:center;gap:10px}
+.brand i{width:18px;height:18px;border-radius:4px;background:conic-gradient(var(--v700) 25%,var(--v300) 0 50%,var(--v500) 0 75%,var(--v900) 0);display:inline-block}
+#bar{height:3px;background:var(--v600);width:0;transition:width .1s}
+.btn{font:600 .9rem system-ui,sans-serif;background:var(--v700);color:#fff;border:2px solid var(--v700);border-radius:10px;padding:7px 14px;cursor:pointer}
+.btn:hover{background:var(--v800);border-color:var(--v800)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--v700)}
+.btn.ghost:hover{background:var(--v50)}
+.btn.sm{padding:4px 10px;font-size:.82rem}
+#toc{position:absolute;right:max(20px,calc(50% - 520px));top:100%;width:min(360px,calc(100vw - 40px));max-height:70vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 40px -12px rgba(46,16,101,.35);padding:10px}
+#toc ol{list-style:none;margin:0;padding:0;max-width:none}
+#toc a{display:flex;gap:10px;padding:7px 10px;border-radius:8px;text-decoration:none;color:var(--ink);font-size:.95rem;line-height:1.35}
+#toc a b{color:var(--v600);font-variant-numeric:tabular-nums;min-width:1.6em}
+#toc a:hover,#toc a[aria-current=true]{background:var(--v100);color:var(--v900)}
+#toc a[aria-current=true]{font-weight:700}
+
+/* hero */
+.hero{color:#fff;padding:84px 20px 92px;background-color:var(--v900);
+  background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(135deg,var(--v950),var(--v700));
+  background-size:30px 30px,30px 30px,100% 100%}
+.hero .in{max-width:900px;margin:0 auto}
+.eyebrow{font:700 .78rem system-ui;letter-spacing:.14em;text-transform:uppercase;color:var(--v200)}
+.hero h1{color:#fff;font-size:clamp(2.3rem,6.5vw,4rem);margin:.4rem 0 1rem}
+.hero p{font-size:1.2rem;color:var(--v100);max-width:56ch}
+.hero .cta{margin-top:1.6rem;display:flex;gap:12px;flex-wrap:wrap}
+.hero .btn{background:#fff;color:var(--v800);border-color:#fff}
+.hero .btn.ghost{background:transparent;color:#fff;border-color:var(--v300)}
+
+/* sections */
+main section{padding:60px 20px;border-bottom:1px solid var(--line)}
+main section:nth-of-type(even){background:var(--v50)}
+main section>.in{max-width:940px;margin:0 auto}
+.kicker{display:inline-block;font:700 .78rem system-ui;letter-spacing:.14em;text-transform:uppercase;color:var(--v600);margin-bottom:.35rem}
+.callout{border-left:5px solid var(--v600);background:var(--v100);padding:12px 18px;border-radius:0 14px 14px 0;margin:1.2rem 0;max-width:70ch}
+.callout p{margin:.3rem 0}
+.note{font-size:.88rem;color:var(--muted)}
+.formula{font:italic 1.2rem Georgia,serif;text-align:center;background:var(--v900);color:#fff;border-radius:14px;padding:14px 18px;margin:16px 0;overflow-x:auto;max-width:none}
+.formula small{display:block;font:.8rem system-ui;color:var(--v200);font-style:normal;margin-top:4px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:16px 0}
+.card{border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:#fff}
+.card h4{margin:0 0 .3rem;font-size:1.05rem;color:var(--v900)}
+.card p{margin:.3rem 0;font-size:.97rem}
+.card.dark{background:var(--v900);color:#fff;border-color:var(--v900)}
+.card.dark h4{color:#fff}
+.tag{display:inline-block;font:700 .72rem system-ui;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--v100);color:var(--v800)}
+
+/* widgets */
+.widget{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin:24px 0;box-shadow:0 8px 26px -14px rgba(76,29,149,.35)}
+.wtag{display:inline-block;font:700 .7rem system-ui;letter-spacing:.1em;text-transform:uppercase;color:var(--v700);background:var(--v100);padding:5px 10px;border-radius:999px;margin-bottom:8px}
+.wtitle{font:700 1.12rem/1.3 Georgia,serif;color:var(--v900);margin:0 0 4px}
+.wdesc{color:var(--muted);font-size:.93rem;margin:0 0 12px;max-width:none}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:8px 0 14px}
+.seg{display:inline-flex;flex-wrap:wrap}
+.seg button{font:600 .85rem system-ui,sans-serif;border:1.5px solid var(--v300);background:#fff;color:var(--v800);padding:6px 12px;cursor:pointer;margin-left:-1.5px}
+.seg button:first-child{border-radius:10px 0 0 10px;margin-left:0}
+.seg button:last-child{border-radius:0 10px 10px 0}
+.seg button:only-child{border-radius:10px}
+.seg button:hover{background:var(--v50)}
+.seg button[aria-pressed=true]{background:var(--v700);border-color:var(--v700);color:#fff;position:relative;z-index:1}
+select,input[type=number]{font:inherit;font-size:.9rem;padding:6px 8px;border:1.5px solid var(--v300);border-radius:8px;background:#fff;color:var(--v900)}
+input[type=number]{width:92px}
+input[type=range]{accent-color:var(--v600)}
+label.sel,label.chk,label.fld{font-size:.88rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+label.fld{flex-direction:column;align-items:flex-start;gap:3px;font-weight:600}
+.mat{display:grid;gap:3px;grid-template-columns:repeat(var(--c),minmax(0,1fr))}
+.cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;text-align:center;font:600 clamp(.6rem,1.7vw,.88rem)/1.1 ui-monospace,Menlo,monospace;border-radius:6px;background:var(--v50);color:var(--v900);border:1.5px solid var(--v200);padding:0;margin:0}
+button.cell{cursor:pointer}
+button.cell:hover{border-color:var(--v700)}
+.cell.win{outline:3px solid var(--v900);outline-offset:-2px;z-index:1}
+.cell.pad{background:repeating-linear-gradient(45deg,#fff,#fff 4px,var(--v100) 4px,var(--v100) 8px);color:var(--muted);border-style:dashed}
+.cell.neg{border:2px dashed var(--v900)}
+.cell.cur{outline:3px solid var(--v900);outline-offset:-2px}
+.cell.on{background:var(--v700);color:#fff;border-color:var(--v700)}
+.cell.ghost{border:2px dashed var(--v700)}
+.cell.sel{outline:3px solid var(--v900);outline-offset:-2px}
+.bars{display:grid;gap:6px}
+.brow{display:grid;grid-template-columns:minmax(78px,150px) 1fr 62px;gap:10px;align-items:center;font-size:.9rem}
+.bl{font-weight:600;color:var(--v900)}
+.bt{background:var(--v100);border-radius:6px;height:16px;overflow:hidden;display:block}
+.bf{display:block;height:100%;background:var(--v700);border-radius:6px;transition:width .25s}
+.bv{font-variant-numeric:tabular-nums;text-align:right;color:var(--muted)}
+.readout{margin-top:12px;padding:10px 14px;background:var(--v50);border:1px solid var(--line);border-radius:12px;font-size:.93rem;max-width:none}
+.readout b{color:var(--v900)}
+.fig{margin:14px 0}
+.fig img{max-width:100%;height:auto;border-radius:12px;border:1px solid var(--line);display:block;margin:0 auto}
+.fig figcaption{font-size:.85rem;color:var(--muted);text-align:center;margin-top:6px}
+.fb{display:none;padding:18px;border:2px dashed var(--v300);border-radius:12px;color:var(--muted);font-size:.9rem;text-align:center}
+.fig.broken .fb{display:block}
+.fig.broken img{display:none}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+
+/* tabs */
+.tabs{margin:18px 0}
+.tablist{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--line);margin-bottom:14px}
+.tablist button{font:600 .92rem system-ui,sans-serif;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:9px 14px;cursor:pointer;margin-bottom:-2px;border-radius:8px 8px 0 0}
+.tablist button:hover{color:var(--v800);background:var(--v50)}
+.tablist button[aria-selected=true]{color:var(--v800);border-bottom-color:var(--v700);background:var(--v100)}
+[role=tabpanel]:focus-visible{outline-offset:6px}
+
+/* code + tables */
+details.code{border:1px solid var(--line);border-radius:12px;margin:14px 0;background:#fff;overflow:hidden}
+details.code summary{cursor:pointer;padding:10px 14px;font:600 .9rem system-ui;color:var(--v800);background:var(--v50)}
+details.code[open] summary{border-bottom:1px solid var(--line)}
+pre{margin:0;padding:14px 16px;overflow:auto;background:var(--v950);color:var(--v100);font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.tw{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--v100);color:var(--v900);font-weight:700}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+
+/* specific widgets */
+.pxwrap{display:grid;grid-template-columns:minmax(0,420px) 1fr;gap:20px;align-items:start}
+.pxgrid{gap:2px}
+.pxgrid .cell{border-radius:3px;border:0;font-size:clamp(.5rem,1.4vw,.68rem)}
+.vrow{display:flex;align-items:center;gap:8px;margin:5px 0}
+.vl{font-weight:800;color:var(--v800);width:44px;font-size:.82rem}
+.vcells{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:3px;flex:1}
+.vcells .cell{aspect-ratio:auto;height:34px;font-size:clamp(.55rem,1.5vw,.78rem)}
+.flat{display:grid;grid-template-columns:130px 1fr;gap:22px;align-items:start}
+.flat .mat{max-width:130px}
+.srow{display:grid;grid-template-columns:72px minmax(90px,1fr) 42px minmax(90px,1fr) 58px;gap:10px;align-items:center;margin:8px 0;font-size:.9rem}
+.srow input{width:100%}
+.zv{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+.mx{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start}
+.layers{list-style:none;margin:0;padding:0;max-width:none;display:grid;gap:6px}
+.lay{width:100%;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,.9fr) minmax(0,1fr);gap:8px;align-items:center;text-align:left;font:inherit;font-size:.86rem;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--ink)}
+.lay:hover{border-color:var(--v400)}
+.lay[aria-pressed=true]{border-color:var(--v700);background:var(--v50);box-shadow:inset 4px 0 0 var(--v700)}
+.lay .ln{font-weight:700;color:var(--v900)}
+.lay .ls{color:var(--muted);font-variant-numeric:tabular-nums}
+.lay .lp{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
+.lay .lb{grid-column:1/-1;height:6px;background:var(--v100);border-radius:4px;overflow:hidden}
+.lay .lb i{display:block;height:100%;background:var(--v600)}
+.ldetail{background:var(--v900);color:#fff;border-radius:14px;padding:16px 18px;position:sticky;top:90px}
+.ldetail h4{color:#fff;margin:0 0 6px}
+.ldetail p{margin:.4rem 0;font-size:.92rem;color:var(--v100)}
+.ldetail code{background:rgba(255,255,255,.14);color:#fff}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;color:var(--muted);margin:6px 0}
+.legend i{display:inline-block;width:26px;height:0;border-top:3px solid var(--v900);vertical-align:middle;margin-right:6px}
+.plot{touch-action:pan-y;outline-offset:2px}
+.plot svg{width:100%;height:auto;display:block}
+.cx{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,.7fr) minmax(0,.7fr) minmax(0,1fr);gap:16px;align-items:start}
+.pl{font:700 .78rem system-ui;color:var(--v800);margin-bottom:6px;letter-spacing:.02em}
+.sum{margin-top:8px;font-size:.95rem}
+.stepbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:14px}
+.stepbar input[type=range]{flex:1;min-width:140px}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
+.stat{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff}
+.stat .k{font:700 .74rem system-ui;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat .v{font:700 1.7rem Georgia,serif;color:var(--v900)}
+.stat .s{font-size:.85rem;color:var(--muted)}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.vs div{padding:8px 10px;border-radius:10px;background:var(--v50)}
+.vs div.win{background:var(--v900);color:#fff}
+.vs small{display:block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.vs b{font:700 1.3rem Georgia,serif}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0;max-width:none}
+.flow span{background:#fff;border:1.5px solid var(--v300);color:var(--v900);padding:8px 12px;border-radius:10px;font:600 .9rem system-ui}
+.flow i{color:var(--v600);font-style:normal;font-weight:800}
+.cortex{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;align-items:stretch}
+.cortex .rl{font:700 .75rem system-ui;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center}
+.cortex button{font:inherit;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:10px 8px;cursor:pointer;text-align:center;color:var(--ink);font-size:.84rem}
+.cortex button:hover{border-color:var(--v400)}
+.cortex button[aria-pressed=true]{background:var(--v900);color:#fff;border-color:var(--v900)}
+.cortex svg{width:40px;height:40px;display:block;margin:0 auto 4px}
+.cortex button b{display:block;font-size:.86rem}
+.opt{display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;cursor:pointer;background:#fff}
+.opt:hover{border-color:var(--v400)}
+.opt input{margin-top:5px;accent-color:var(--v700)}
+.opt.ok{background:var(--v900);color:#fff;border-color:var(--v900)}
+.opt.bad{border:2px dashed var(--v900);background:var(--v50)}
+.opt .mk{margin-left:auto;font-weight:700;font-size:.82rem;white-space:nowrap}
+fieldset{border:0;padding:0;margin:0}
+legend{font-weight:700;color:var(--v900);padding:0;margin-bottom:6px}
+.qa{display:flex;gap:10px;margin-top:10px}
+footer{background:var(--v950);color:var(--v200);text-align:center;padding:36px 20px;font:700 1rem Georgia,serif}
+footer small{display:block;font:.8rem system-ui;opacity:.7;margin-top:4px}
+
+@media (max-width:820px){
+  .pxwrap,.flat,.mx{grid-template-columns:1fr}
+  .cx{grid-template-columns:1fr 1fr}
+  .cx .pn-in{grid-column:1/-1}
+  .ldetail{position:static}
+  .cortex{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .cortex .rl{grid-column:1/-1}
+}
+@media (max-width:640px){
+  body{font-size:16px}
+  main section{padding:44px 16px}
+  .srow{grid-template-columns:72px 1fr 42px}
+  .srow .bt{grid-column:2}
+  .srow .bv{grid-column:3}
+  .brow{grid-template-columns:84px 1fr 54px}
+}
+/* L2 additions */
+.maps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.maps .mat{gap:2px}
+.maps .cell{border-radius:3px;border:0;font-size:clamp(.5rem,1.4vw,.72rem)}
+.mapbtn{border:2px solid transparent;background:none;border-radius:10px;padding:4px;cursor:pointer;text-align:left;font:inherit}
+.mapbtn:hover{border-color:var(--v300)}
+.mapbtn[aria-pressed=true]{border-color:var(--v700);background:var(--v50)}
+.outrow{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+.outrow .cell{width:34px;height:34px;aspect-ratio:auto;border-radius:5px;font-size:.7rem}
+.neurons{gap:3px;max-width:420px}
+.neurons .cell{border-radius:4px;border:0;font-size:0}
+.neurons .cell.on{background:var(--v700)}
+.neurons .cell.off{background:repeating-linear-gradient(45deg,#fff,#fff 3px,var(--v200) 3px,var(--v200) 6px);border:1.5px dashed var(--v300)}
+.meter{height:12px;background:var(--v100);border-radius:6px;overflow:hidden;margin:4px 0 10px}
+.meter i{display:block;height:100%;background:var(--v700);transition:width .2s}
+.meter.warn i{background:var(--v900)}
+.mrow{font-size:.9rem;color:var(--ink)}
+.mrow b{color:var(--v900)}
+.lsteps{list-style:none;counter-reset:s;padding:0;margin:12px 0;max-width:none;display:grid;gap:8px}
+.lsteps li{counter-increment:s;display:flex;gap:12px;align-items:center;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;background:#fff;margin:0}
+.lsteps li::before{content:counter(s);flex:none;width:28px;height:28px;border-radius:50%;background:var(--v700);color:#fff;display:flex;align-items:center;justify-content:center;font:700 .85rem system-ui}
+.lsteps li.skip{border-style:dashed;background:var(--v50);color:var(--muted)}
+.lsteps li.skip::before{background:var(--v300)}
+.lsteps li .tg{margin-left:auto;font:700 .72rem system-ui;letter-spacing:.06em;text-transform:uppercase;color:var(--v800);background:var(--v100);padding:3px 8px;border-radius:999px;white-space:nowrap}
+.augg{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}
+.augg figure{margin:0;text-align:center}
+.augg svg{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#fff}
+.augg figcaption{font:600 .78rem system-ui;color:var(--muted);margin-top:4px}
+.vols{width:100%;height:auto;display:block;margin:6px 0 10px}
+.vols g[role=button]{cursor:pointer}
+.vols g:focus-visible{outline:none}
+.vols g:focus-visible rect:first-of-type{stroke-width:4}
+.rbars{display:grid;gap:8px}
+.rb{display:grid;grid-template-columns:minmax(120px,210px) 1fr 64px;gap:10px;align-items:center;text-align:left;font:inherit;font-size:.9rem;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;color:var(--ink);width:100%}
+.rb:hover{border-color:var(--v400)}
+.rb[aria-pressed=true]{border-color:var(--v700);background:var(--v50);box-shadow:inset 4px 0 0 var(--v700)}
+.rb .bl{font-weight:700}
+.rb .bt{height:18px;position:relative}
+.rb .zone{position:absolute;top:0;bottom:0;left:0;background:repeating-linear-gradient(45deg,var(--v200),var(--v200) 3px,#fff 3px,#fff 6px);opacity:.9}
+.rb .bf{position:relative}
+.mt td,.mt th{text-align:center;padding:6px 8px}
+.mt td:first-child,.mt th:first-child{text-align:left}
+.yes{font-weight:800;color:var(--v700)}
+.no{color:var(--v300)}
+pre.prompt{white-space:pre-wrap;word-break:break-word;border-radius:12px;font-size:13px}
+.hint{font-size:.85rem;color:var(--muted)}
+.cardlink{display:inline-block;margin-top:.4rem;font-weight:700;font-size:.9rem}
+@media (max-width:640px){
+  .maps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rb{grid-template-columns:90px 1fr 54px}
+}
+td.hl{background:var(--v100);font-weight:700}
+label.sel{flex-wrap:wrap;max-width:100%}
+label.sel select{max-width:100%;min-width:0}
+@media (max-width:640px){label.sel{width:100%}label.sel select{width:100%}}
+.yes{white-space:nowrap}
+@media (max-width:640px){.plot svg text{font-size:19px}.vols text{font-size:18px}}
+p code,li code,td code{overflow-wrap:anywhere}
+@media (max-width:640px){.widget .tw th,.widget .tw td{padding:6px 5px;font-size:.74rem}}
+.readout pre{overflow-x:auto;max-width:100%}
+.seg{max-width:100%;flex-wrap:wrap}
+.brow{grid-template-columns:minmax(70px,150px) minmax(0,1fr) auto}.brow .bl{overflow-wrap:anywhere}
+.readout{overflow-wrap:anywhere}
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="in">
+    <a class="brand" href="#top"><i aria-hidden="true"></i>Computer Vision 5 post read</a>
+    <button class="btn ghost sm" id="tocBtn" aria-expanded="false" aria-controls="toc">Contents</button>
+  </div>
+  <div id="bar" aria-hidden="true"></div>
+  <nav id="toc" aria-label="Contents" hidden><ol></ol></nav>
+</header>
+
+<div class="hero" id="top">
+  <div class="in">
+    <div class="eyebrow">Deep Learning · Computer Vision</div>
+    <h1>Computer Vision 5 post read</h1>
+    <p>How do you find images that look like a given image? We meet two landmark CNN architectures, Inception (GoogLeNet) and ResNet, use a pretrained ResNet-50 to turn images into embeddings, find similar images with nearest-neighbour search, measure its quality, and then speed it up with PCA and Annoy.</p>
+    <div class="cta"><a class="btn" href="#sim">Start reading</a><a class="btn ghost" href="#search">Jump to similarity search</a></div>
+  </div>
+</div>
+
+<main id="main">
+
+<section id="sim" data-title="Image similarity and embeddings">
+<div class="in">
+  <span class="kicker">01</span>
+  <h2>Image similarity and embeddings</h2>
+  <p>You are a data scientist at Pinterest. Given a query image, return the images in the catalogue that look most similar to it. <b>Image similarity</b> measures how alike two images are based on visual content: shapes, colours, textures and objects. Searching a collection for images similar to a query is often called <b>reverse image search</b>.</p>
+  <h3>What can you do with image similarity?</h3>
+  <div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
+    <div class="card"><span class="tag">Explore</span><h4>Unlabelled collections</h4><p>Explore large image collections by showing similar images: Google Images, Pinterest, “celebrity look-alike” websites.</p></div>
+    <div class="card"><span class="tag">Cluster</span><h4>Online shop items</h4><p>Some categories, such as shoes, are visually distinct. Others overlap a lot with their neighbours.</p></div>
+    <div class="card"><span class="tag">Clean</span><h4>Remove duplicates</h4><p>High-quality training data matters, and duplicates can hurt results. Similarity can find near-duplicates in a dataset.</p></div>
+  </div>
+  <details class="code"><summary>Lecture figures: Google, Pinterest, look-alike sites</summary><div data-fig="g1,g2,g3"></div></details>
+
+  <h3>How do we measure how similar two images are?</h3>
+  <p>For vectors we can use the sum of squared differences, or related measures such as Euclidean or cosine distance. Applied directly to raw pixels these work poorly, because the meaning of an image lies in how pixels relate to each other, not in individual pixel values.</p>
+  <div class="widget" data-w="shift"></div>
+  <p>Two common measures on vectors are <b>Euclidean distance</b> (straight-line distance) and <b>cosine similarity</b> (angle between vectors). For unit-length (L2-normalized) vectors they give the <i>same ranking</i>.</p>
+  <div class="widget" data-w="cos"></div>
+
+  <h3>What is an embedding?</h3>
+  <p>Computers work with numbers, so we convert each image into a vector that captures its content and scene. This vector is an <b>embedding</b>: images with similar content end up close together in the embedding space. So we first convert each image to a compact feature vector, then compare the vectors.</p>
+  <div data-fig="emb"></div>
+  <div class="vs">
+    <div><b>Classical approach</b><p>Hand-crafted features such as Gabor filters, SIFT, Local Binary Patterns or HOG, then compare those features.</p></div>
+    <div class="win"><b>Deep learning approach (most common today)</b><p>Use a CNN that maps an image to a vector.</p></div>
+  </div>
+  <p>A <b>Siamese network</b> is one way to train such a mapping: two copies of the same CNN embed two images, and training pulls similar pairs together and pushes dissimilar pairs apart. We skip training and reuse a network already trained on a large dataset. Our ResNet-50 was trained for <i>classification</i> on ImageNet, not similarity, but its penultimate-layer features still work well as embeddings.</p>
+
+  <h3>Similarity vs classification</h3>
+  <p>Both use the same kind of CNN, but differently. A classifier only decides which category an image belongs to, so most of the information in the image is discarded in the final output. For similarity we take the representation just before the final classification layer, which keeps far more (shape, texture, layout) than a class label does.</p>
+  <p><b>Feature extraction with a pretrained CNN:</b> the convolutional layers already hold generally useful visual features. We retrain nothing; we run the images through the network and read the features out, using ResNet-50 and evaluating on Caltech-101.</p>
+  <div data-fig="fe"></div>
+</div>
+</section>
+
+<section id="data" data-title="The Caltech-101 dataset and setup">
+<div class="in">
+  <span class="kicker">02</span>
+  <h2>The Caltech-101 dataset and setup</h2>
+  <div class="cmp">
+    <div class="stat"><div class="k">Categories</div><div class="v">101</div><div class="s">40 to 800 images each (original release)</div></div>
+    <div class="stat"><div class="k">Images</div><div class="v">8,677</div><div class="s">about 9,100 with the background category</div></div>
+    <div class="stat"><div class="k">Size</div><div class="v">~200–300</div><div class="s">pixels per side</div></div>
+  </div>
+  <p>Labels are image-level only (the original release also includes bounding boxes). The <code>BACKGROUND_Google</code> folder is a 102nd, catch-all category, so we delete it, leaving 101 categories.</p>
+  <div data-fig="cal"></div>
+  <div class="widget" data-w="caltech"></div>
+  <details class="code"><summary>Code: download and prepare the dataset</summary><pre data-code="dl"></pre></details>
+  <details class="code"><summary>Code: remove the background category and verify</summary><pre data-code="verify"></pre></details>
+  <details class="code"><summary>Code: imports, seeds and device</summary><pre data-code="imports"></pre></details>
+</div>
+</section>
+
+<section id="incep" data-title="Inception (GoogLeNet)">
+<div class="in">
+  <span class="kicker">03</span>
+  <h2>Inception (GoogLeNet)</h2>
+  <p>AlexNet and VGG have two drawbacks: they are slow to train, and they are large on disk, mostly because of the big fully connected layers at the end. Can we get fewer parameters <i>and</i> better accuracy? <b>Inception</b> and <b>ResNet</b> do.</p>
+  <p>GoogLeNet, built at Google, won the ImageNet (ILSVRC) classification challenge in 2014. It was introduced by Szegedy et al. in “Going Deeper with Convolutions” (<a href="https://arxiv.org/pdf/1409.4842.pdf" target="_blank" rel="noopener">paper</a>). The name nods to the film <i>Inception</i> and “We need to go deeper”; making networks deeper was a main research goal at the time.</p>
+  <details class="code"><summary>Lecture figure</summary><div data-fig="incep"></div></details>
+  <h3>Why is it important?</h3>
+  <p><b>1. It is small.</b> GoogLeNet is much smaller than AlexNet and VGG even though it is deeper. Most weights sit in the dense layers, so the authors replaced the large fully connected layers with global average pooling and kept one small classifier on top.</p>
+  <div class="widget" data-w="models"></div>
+  <p><b>2. It introduced the Inception module.</b> GoogLeNet is built from small blocks (micro-architectures) in which the data splits into several paths and is joined again. Inside one block, convolutions of several sizes run in parallel, so the block is a <b>multi-scale feature extractor</b>.</p>
+
+  <h3>Why a multi-scale feature extractor?</h3>
+  <p>It is hard to know which filter size a layer should use: 5×5? 3×3? 1×1, for purely local features? Instead of choosing, learn all of them: 1×1, 3×3 and 5×5 filters run in parallel and their feature maps are concatenated along the channel dimension. The next layer receives the combined result and does the same, so the network picks up both fine local detail and broader patterns at every stage.</p>
+  <div data-fig="wheat"></div>
+  <p>This image has three main elements: wheat, people and sky. An element covering a large part of the frame is best captured by a large kernel, a small element by a small kernel. An Inception module applies several kernel sizes at once, so each element is picked up at a suitable scale.</p>
+  <div class="widget" data-w="quiz" data-q="q2"></div>
+
+  <h3>The four branches</h3>
+  <div class="grid3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+    <div class="card"><span class="tag">1</span><h4>1×1 conv</h4><p>Local features at each position, and cheap channel reduction.</p></div>
+    <div class="card"><span class="tag">2</span><h4>1×1 → 3×3 conv</h4><p>Medium-sized patterns.</p></div>
+    <div class="card"><span class="tag">3</span><h4>1×1 → 5×5 conv</h4><p>Larger patterns and wider context.</p></div>
+    <div class="card"><span class="tag">4</span><h4>3×3 max-pool → 1×1</h4><p>Some robustness to small shifts (the “pool projection”).</p></div>
+  </div>
+  <div data-fig="mod"></div>
+  <p>A ReLU follows every convolution (left out of the diagram to save space). Branches 2 and 3 first apply a 1×1 convolution to cut the channels, then the 3×3 or 5×5; large kernels are expensive, so shrinking the input first saves computation, which is why the 1×1 layer usually has fewer filters than the larger convolution after it. Branch 4 uses 3×3 max pooling with stride 1; later work (Springenberg et al., “Striving for Simplicity”, 2014) showed pooling can be replaced by strided convolutions. Padding keeps every branch’s output the same height and width so the four outputs can be concatenated, and several Inception modules are stacked before a pooling layer reduces the spatial size.</p>
+  <div class="widget" data-w="incep"></div>
+  <details class="code"><summary>Code: InceptionModule and the 3a test</summary><pre data-code="incep"></pre></details>
+  <div class="readout">Input : (1, 192, 28, 28)<br>Output: (1, 256, 28, 28)</div>
+  <details class="code"><summary>Lecture figure: the full GoogLeNet</summary><div data-fig="goog"></div></details>
+  <p>GoogLeNet is 22 layers deep counting only layers with parameters (27 with pooling layers).</p>
+
+  <h3>1×1 convolutions</h3>
+  <p>A 1×1 filter looks pointless: on a single-channel image it multiplies every pixel by a constant. On a multi-channel input it learns one weight per channel and sums the results, a learned linear combination of the channels at each pixel. This lets us change the number of channels cheaply (for example 192 to 16 before a 5×5 convolution) and add non-linearity through the ReLU that follows, at low cost.</p>
+  <details class="code"><summary>Lecture figure</summary><div data-fig="one"></div></details>
+  <details class="code"><summary>Code: check the 1×1 saving yourself</summary><pre data-code="count"></pre></details>
+  <div class="readout">Direct 5x5 conv      : 153,600 weights<br>1x1 reduce, then 5x5 : 15,872 weights<br>Reduction            : 9.7x fewer</div>
+</div>
+</section>
+
+<section id="resnet" data-title="Going deeper: ResNet">
+<div class="in">
+  <span class="kicker">04</span>
+  <h2>Going deeper: ResNet</h2>
+  <p>A deeper network can represent more complex functions and learn features at several levels of abstraction, from edges in the early layers to complex object parts in the later ones. Networks have grown from a handful of layers (AlexNet) to well over a hundred.</p>
+  <h3>Does adding more layers always help?</h3>
+  <p>No. Very deep networks are hard to train. Backpropagation applies the chain rule, which multiplies one term per layer.</p>
+  <div class="vs">
+    <div><b>Vanishing gradients</b><p>If the terms are mostly smaller than 1, the product shrinks towards zero: early layers barely learn and training becomes extremely slow.</p></div>
+    <div><b>Exploding gradients</b><p>If they are mostly larger than 1, the product grows very large and training becomes unstable.</p></div>
+  </div>
+  <details class="code"><summary>Lecture figure: gradient norm of early layers</summary><div data-fig="gradn"></div></details>
+  <p>The ResNet authors also reported a <b>degradation problem</b>: plain networks made deeper showed <i>higher training error</i> than shallower ones. Both problems motivate residual networks.</p>
+
+  <h3>ResNet and skip connections</h3>
+  <p>ResNet, from Microsoft Research, won ImageNet (ILSVRC) in 2015 (<a href="https://arxiv.org/pdf/1512.03385.pdf" target="_blank" rel="noopener">paper</a>). Its key idea is the <b>skip connection</b> (residual connection), which makes very deep networks trainable: the ILSVRC entry used 152 layers, and the paper also trained a 1,202-layer network on CIFAR-10.</p>
+  <div data-fig="skip"></div>
+  <div class="formula">y = F(x) + x</div>
+  <p><code>F</code> is a small stack of convolution layers and <code>x</code> is the block’s input, carried forward unchanged by the skip connection. The convolutions only have to learn the residual <code>F(x) = y − x</code>, which the authors argue is easier than the full mapping, especially when the best mapping is close to the identity.</p>
+  <h3>How do skip connections help with vanishing gradients?</h3>
+  <ul>
+    <li>The addition gives gradients a direct path back. Since <code>d(F(x) + x)/dx = dF/dx + 1</code>, the gradient reaching earlier layers does not vanish just because <code>dF/dx</code> is small.</li>
+    <li>The network behaves like a collection of paths of different lengths, many of them short, so it is effectively shallower.</li>
+    <li>If a block is not useful, it can learn <code>F(x)</code> close to zero and simply pass its input through.</li>
+  </ul>
+  <div class="widget" data-w="grad"></div>
+  <details class="code"><summary>Code: the numeric check</summary><pre data-code="gradc"></pre></details>
+  <div class="readout">Plain network   : gradient factor = 1.0e-10<br>With skip links : gradient factor = 2.59</div>
+  <details class="code"><summary>Lecture figure: loss surface with and without skip connections</summary><div data-fig="loss"></div></details>
+  <p class="note">With skip connections the loss surface is much smoother and easier to optimise (Li et al., 2018).</p>
+  <div class="widget" data-w="quiz" data-q="q3"></div>
+
+  <h3>Building ResNet-50</h3>
+  <p>ResNet comes in versions named after their weighted layers: 18, 34, 50, 101 and 152. ResNet-50 uses <b>bottleneck</b> blocks: a 1×1 convolution that reduces channels, a 3×3 convolution, and a 1×1 convolution that expands channels again. There are two kinds of residual block.</p>
+  <div class="vs">
+    <div class="win"><b>Identity block</b><p>Used when input and output have the same shape, so <code>x</code> can be added directly.</p></div>
+    <div class="win"><b>Convolution block</b><p>Used when the shape changes (more channels, or a stride that shrinks the map). The skip path gets a 1×1 convolution so <code>x</code> can be added.</p></div>
+  </div>
+  <div data-fig="idb,cvb"></div>
+  <p>Layer order of the main path: Conv, BatchNorm, ReLU, Conv, BatchNorm, ReLU, Conv, BatchNorm, add the input, ReLU.</p>
+  <div class="widget" data-w="block"></div>
+  <details class="code"><summary>Code: IdentityBlock</summary><pre data-code="idb"></pre></details>
+  <details class="code"><summary>Code: ConvBlock and the shape test</summary><pre data-code="cvb"></pre></details>
+  <div class="readout">IdentityBlock: (1, 256, 56, 56)<br>ConvBlock    : (1, 512, 28, 28)</div>
+  <div class="callout"><p><b>Why the ReLU between convolutions matters.</b> Two linear operations stacked with nothing non-linear between them collapse into one linear operation, so every convolution in the main path is followed by (BatchNorm and) a ReLU, except the last, where the ReLU comes after the addition.</p></div>
+
+  <h3>The ResNet-50 architecture</h3>
+  <div data-fig="r50"></div>
+  <ul>
+    <li>A stem: 7×7 convolution (stride 2) and 3×3 max pooling.</li>
+    <li>Four stages with 3, 4, 6 and 3 bottleneck blocks. Each stage starts with a convolution block, followed by identity blocks.</li>
+    <li>Global average pooling turns the final feature map into a <b>2,048-dimensional vector</b>. Without a classifier on top, this vector is exactly the embedding we want.</li>
+  </ul>
+  <p class="note">Strictly, we put the stride on the first 1×1 convolution like the original paper; torchvision’s “v1.5” puts it on the 3×3 convolution. The parameter count is identical.</p>
+  <div class="widget" data-w="res"></div>
+  <details class="code"><summary>Code: ResNet50FromScratch</summary><pre data-code="r50"></pre></details>
+  <details class="code"><summary>Code: trace the shapes and compare parameter counts</summary><pre data-code="r50t"></pre></details>
+  <div class="readout"><pre style="margin:0;background:none;border:0;padding:0">stem   : (1, 64, 56, 56)
+stage 1: (1, 256, 56, 56)
+stage 2: (1, 512, 28, 28)
+stage 3: (1, 1024, 14, 14)
+stage 4: (1, 2048, 7, 7)
+output : (1, 2048) <- the embedding
+
+Our parameters      : 23,508,032
+Reference parameters: 23,508,032</pre></div>
+</div>
+</section>
+
+<section id="extract" data-title="ResNet-50 as a feature extractor">
+<div class="in">
+  <span class="kicker">05</span>
+  <h2>ResNet-50 as a feature extractor</h2>
+  <p>Which pretrained model should we use? ResNet-50 is clearly more accurate than GoogLeNet (76.1% vs 69.8% top-1), although GoogLeNet is smaller. Compared with VGG, ResNet-50 has about five times fewer parameters and higher accuracy. Its 2,048-dimensional output is compact and widely used for retrieval. Training a deep CNN from scratch takes days and a lot of compute; with transfer learning we reuse ImageNet weights, here <b>without any fine-tuning</b>.</p>
+  <h3>Loading the pretrained ResNet-50</h3>
+  <p>We replace the final 1,000-class layer with an identity operation, so the model returns the 2,048-dimensional pooled feature vector instead of class scores. <code>eval()</code> switches batch normalization to inference mode (important: otherwise the features would depend on the other images in the batch).</p>
+  <details class="code"><summary>Code: load the model</summary><pre data-code="load"></pre></details>
+  <div class="readout">Parameters: 23.5M</div>
+  <div class="widget" data-w="quiz" data-q="q1"></div>
+
+  <h3>Feature extraction, step by step</h3>
+  <ol class="lsteps">
+    <li><span><b>One shared preprocessing</b> for single images and the whole dataset: resize to 224×224, convert to a tensor, normalize with the ImageNet mean/std. Using the same transform everywhere keeps query and dataset features comparable.</span></li>
+    <li><span><b>A function that turns one image file into an embedding.</b> We L2-normalize the vector (length 1) so distances are comparable and Euclidean ranking equals cosine ranking.</span></li>
+    <li><span><b>The whole dataset:</b> <code>ImageFolder</code> finds every image and uses the folder names as labels; a <code>DataLoader</code> feeds them in batches, much more efficient than one image at a time.</span></li>
+  </ol>
+  <details class="code"><summary>Code: preprocessing</summary><pre data-code="prep"></pre></details>
+  <details class="code"><summary>Code: one image to one embedding (with timing)</summary><pre data-code="one"></pre></details>
+  <div class="readout">Image: data/caltech101/101_ObjectCategories/Faces/image_0001.jpg<br>Length of the feature vector: 2048 | norm: 1.0<br>Time per image (read + preprocess + forward pass): 14.3 ms</div>
+  <details class="code"><summary>Code: ImageFolder and DataLoader</summary><pre data-code="loader"></pre></details>
+  <div class="readout">Found 8677 images in 101 classes<br>First 5 classes: ['Faces', 'Faces_easy', 'Leopards', 'Motorbikes', 'accordion']</div>
+  <details class="code"><summary>Code: batched forward pass over the dataset</summary><pre data-code="batch"></pre></details>
+  <div class="cmp">
+    <div class="stat"><div class="k">Feature matrix</div><div class="v">8677 × 2048</div><div class="s">one row per image</div></div>
+    <div class="stat"><div class="k">Batched</div><div class="v">4.0 ms</div><div class="s">per image (0.57 min total)</div></div>
+    <div class="stat"><div class="k">One at a time</div><div class="v">14.3 ms</div><div class="s">per image</div></div>
+  </div>
+  <p>We save the results so the network never has to run again (reload with <code>np.load("data/caltech101_resnet50.npz")</code>).</p>
+  <details class="code"><summary>Code: save the features</summary><pre data-code="save"></pre></details>
+</div>
+</section>
+
+<section id="search" data-title="Similarity search and its accuracy">
+<div class="in">
+  <span class="kicker">06</span>
+  <h2>Similarity search and its accuracy</h2>
+  <p>Given a query image, find the most similar images in the dataset with scikit-learn’s <code>NearestNeighbors</code> (brute-force algorithm, Euclidean distance). Because the vectors are L2-normalized, this ranks images exactly like cosine similarity. The query image is part of the dataset, so its nearest “neighbour” is itself at distance 0: asking for 5 neighbours gives the image plus 4 genuine neighbours.</p>
+  <details class="code"><summary>Code: fit and query</summary><pre data-code="knn"></pre></details>
+  <div class="readout">Query index : 1824<br>Neighbours  : [1824 1540 1486 1538 1598]  (first one is the query itself)<br>Distances   : [0.    0.364 0.368 0.372 0.374]</div>
+  <p><code>fit</code> is almost instant because it only stores the data (“lazy learning”): all the work happens at query time. Now let’s <i>look</i> at the results.</p>
+  <details class="code"><summary>Code: helpers to display results</summary><pre data-code="show"></pre></details>
+  <div data-fig="res1"></div>
+
+  <h3>How far apart are similar and unrelated images?</h3>
+  <p>One query’s distances tell us little. Compare the distance to the 1st and 4th nearest neighbour (over 1,000 random queries) with the distance between <i>random pairs</i> of images.</p>
+  <div class="widget" data-w="dist"></div>
+  <details class="code"><summary>Code: distance comparison</summary><pre data-code="dists"></pre></details>
+
+  <h3>Measuring accuracy: precision@4</h3>
+  <p>Seeing a few examples is not enough. We use class labels as a proxy: for every image we take its 4 nearest neighbours (excluding itself) and count how many share its class. The score is the percentage of neighbours with the right class (<b>precision@4</b>). It is only a proxy: two images from different classes can still look alike.</p>
+  <details class="code"><summary>Code: precision@4</summary><pre data-code="prec"></pre></details>
+  <div class="cmp"><div class="stat"><div class="k">Precision@4, original 2048-d</div><div class="v">88.19%</div><div class="s">all 8,677 queries took 7.2 s</div></div></div>
+
+  <h3>Where does it fail?</h3>
+  <p>A single number hides where the system fails. We find the worst classes, what they get confused with, and queries whose four neighbours are <i>all</i> wrong.</p>
+  <div class="widget" data-w="fail"></div>
+  <details class="code"><summary>Code: failure analysis</summary><pre data-code="fail"></pre></details>
+  <div data-fig="res2"></div>
+</div>
+</section>
+
+<section id="pca" data-title="Shrinking vectors with PCA">
+<div class="in">
+  <span class="kicker">07</span>
+  <h2>Shrinking vectors with PCA</h2>
+  <p>There are two ways to speed up the search: <b>reduce the length of the feature vectors</b>, or <b>use a better search algorithm</b>. Less data means a faster search. ResNet-50 gives 2,048 features; at 32 bits (4 bytes) each, an image takes 8 KB, so a million images take about 8 GB. Different models give different feature lengths:</p>
+  <div class="tw"><table><thead><tr><th>Model</th><th class="n">Feature length</th></tr></thead><tbody>
+    <tr><td>ResNet-18</td><td class="n">512</td></tr><tr><td>ResNet-50</td><td class="n">2,048</td></tr><tr><td>VGG16 (output of the second fully connected layer)</td><td class="n">4,096</td></tr><tr><td>Inception v3</td><td class="n">2,048</td></tr><tr><td>DenseNet-121</td><td class="n">1,024</td></tr><tr><td>MobileNet v2</td><td class="n">1,280</td></tr><tr><td>EfficientNet-B0</td><td class="n">1,280</td></tr></tbody></table></div>
+  <p>Most backbones give 1,000+ features. Cutting that to around 100 without hurting quality makes search far cheaper, and a small index fits in RAM instead of being loaded in parts.</p>
+  <h3>Reducing dimensions with PCA</h3>
+  <p>PCA re-expresses the features in new dimensions ordered by how much of the data’s variance they explain, so the <b>first few components carry most of the information</b>; each extra component adds less than the one before. We fit PCA <b>once</b> with 200 components; keeping the first <i>d</i> columns equals running PCA with <i>d</i> components. 150 components keep <b>87.6%</b> of the variance.</p>
+  <details class="code"><summary>Code: fit PCA and plot variance kept</summary><pre data-code="pca"></pre></details>
+  <details class="code"><summary>Lecture figure: variance kept</summary><div data-fig="pcav"></div></details>
+  <h3>How many dimensions do we need?</h3>
+  <p>The right number is a trade-off between <b>accuracy and speed</b>, so we measure precision@4 for each size.</p>
+  <div class="widget" data-w="pca"></div>
+  <p>Where does the curve flatten out? 150 dimensions is at or past the flattening point: about <b>14× shorter</b> than 2,048 with almost no loss in retrieval quality. The best value depends on the dataset and the feature extractor, so always measure it.</p>
+  <details class="code"><summary>Code: precision@4 for each size, and the 150-d features</summary><pre data-code="dims"></pre></details>
+  <div class="readout">Compressed shape: (8677, 150) | precision@4: 88.43 % vs 88.19 % originally</div>
+  <details class="code"><summary>Lecture figure: precision@4 vs dimensions</summary><div data-fig="pcaa"></div></details>
+  <div class="widget" data-w="quiz" data-q="q4"></div>
+
+  <h3>Visualising clusters with t-SNE</h3>
+  <p>We cannot plot a 2,048-dimensional vector, so t-SNE (t-distributed stochastic neighbour embedding) reduces the features to 2D, which is useful for spotting clusters and neighbouring groups. t-SNE is slow on large inputs, so we reduce with PCA first (the 150 dimensions) and use a random sample of 2,500 images. t-SNE is for <i>looking</i>: distances between far-apart clusters and cluster sizes in the picture are not meaningful.</p>
+  <div data-fig="ts1"></div>
+  <details class="code"><summary>Code: t-SNE</summary><pre data-code="tsne"></pre></details>
+  <details class="code"><summary>Code and figures: t-SNE map with thumbnails</summary><pre data-code="tsne2"></pre><div data-fig="ts2,ts3"></div></details>
+  <p>Look for tight groups from one category (large classes such as faces, motorbikes and airplanes are easy to spot) and for neighbouring groups that look alike. Images that sit between clusters are often the ones retrieval gets wrong.</p>
+</div>
+</section>
+
+<section id="annoy" data-title="Scaling up with Annoy, and conclusion">
+<div class="in">
+  <span class="kicker">08</span>
+  <h2>Scaling up with Annoy, and conclusion</h2>
+  <h3>How do we scale to millions of images?</h3>
+  <p><b>Brute force</b> compares the query with <i>every</i> vector, so the cost grows linearly with the number of items and the number of dimensions. Writing it ourselves shows how simple it is:</p>
+  <details class="code"><summary>Code: BruteForce and timing</summary><pre data-code="brute"></pre></details>
+  <div class="readout">Brute force, 2048-d: 25.501 ms per query<br>Brute force, 150-d : 0.771 ms per query  (33.1x faster)</div>
+  <p>PCA to 150 dimensions shrinks the data about 14 times and (here) speeds up brute force about 33 times, though overheads mean the gain is usually smaller in practice. At our size brute force takes well under a millisecond, so <b>at this size an approximate index has little to offer</b>. At 10 million vectors the same search is over 1,000 times more work: roughly a second per query on one CPU core. With 100 requests per second you would need many cores or machines.</p>
+  <h3>Approximate nearest neighbours</h3>
+  <ul>
+    <li>They do not guarantee the exact nearest neighbours; they usually return the right ones, or very close, much faster.</li>
+    <li>Most expose settings that trade correctness for speed, and you can measure quality against brute-force results.</li>
+    <li>Libraries: <a href="https://github.com/facebookresearch/faiss" target="_blank" rel="noopener">Faiss</a> (Meta), <a href="https://github.com/spotify/annoy" target="_blank" rel="noopener">Annoy</a> (Spotify), <a href="https://github.com/google-research/google-research/tree/master/scann" target="_blank" rel="noopener">ScaNN</a> (Google). Managed services: <a href="https://cloud.google.com/vertex-ai/docs/vector-search/overview" target="_blank" rel="noopener">Google Cloud Vector Search</a>, <a href="https://www.pinecone.io/" target="_blank" rel="noopener">Pinecone</a>, <a href="https://milvus.io/docs/overview.md" target="_blank" rel="noopener">Milvus</a>.</li>
+  </ul>
+  <h3>PCA + Annoy</h3>
+  <p>Annoy (Approximate Nearest Neighbors Oh Yeah) is a C++ library with Python bindings, released by Spotify and used in production for their music recommendations. It builds a <b>forest of random-projection trees</b>. A query walks down each tree to collect candidates, and the closest candidates are returned. More trees give better accuracy but a larger index and a slower build. We build with the vector length (150) and 40 trees, using the Euclidean metric so results compare with brute force.</p>
+  <details class="code"><summary>Code: install and build the index</summary><pre data-code="annoy"></pre></details>
+  <div class="readout">Adding items          : 0.39 s<br>Building 40 trees      : 0.35 s</div>
+  <p>Since the result is approximate, we measure <b>recall@5</b>: the share of the <i>true</i> 5 nearest neighbours (from brute force on the same vectors) that Annoy returns. We <b>exclude the query itself</b> from both lists; otherwise it would count as a free hit. For the query shown earlier, Annoy and brute force returned the same five neighbours: <code>[1540, 1486, 1520, 1598, 1538]</code>.</p>
+  <details class="code"><summary>Code: load the index, query, and measure recall@5</summary><pre data-code="annoyq"></pre></details>
+  <div class="widget" data-w="scale"></div>
+
+  <h3>Conclusion</h3>
+  <div class="tw"><table><thead><tr><th>Method</th><th class="n">Time per query</th><th>Quality</th></tr></thead><tbody>
+    <tr><td>Brute force, 2048-d</td><td class="n">25.501 ms</td><td>precision@4 = 88.19%</td></tr>
+    <tr><td>Brute force, PCA 150-d</td><td class="n">0.771 ms</td><td>precision@4 = 88.43%</td></tr>
+    <tr><td>Annoy, PCA 150-d</td><td class="n">0.251 ms</td><td>recall@5 = 93.5% vs exact search</td></tr></tbody></table></div>
+  <p class="note">Measured on Caltech-101 features from ResNet-50 in the lecture run; timings and accuracies vary by run.</p>
+  <details class="code"><summary>Code: print the comparison</summary><pre data-code="concl"></pre></details>
+  <div class="callout"><ul>
+    <li>A <b>pretrained ResNet-50 gives useful image embeddings with no training.</b></li>
+    <li><b>PCA shrinks the vectors about 14× with almost no loss in retrieval quality</b>, and makes exact search proportionally cheaper.</li>
+    <li><b>Approximate search (Annoy)</b> avoids the linear scan at the cost of occasionally missing a true neighbour. On ~8,700 images exact search is already about as fast, so the real benefit appears at <b>millions</b> of items.</li>
+    <li>“Precision@4” uses class labels as a proxy for visual similarity; always also look at the results.</li>
+  </ul></div>
+</div>
+</section>
+
+</main>
+<footer>Computer Vision 5 post read<small>Interactive learning article</small></footer>
+
+<script>
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const fmt=n=>Number(n).toLocaleString('en-US');
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+let uid=0;
+function h(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild;}
+function mix(t){t=Math.max(0,Math.min(1,t));const a=[255,255,255],b=[109,40,217];return 'rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*t)).join(',')+')';}
+function ink(t){return t>0.5?'#fff':'#2e1065';}
+function shell(root,title,desc){root.classList.add('widget');root.innerHTML='<span class="wtag">Interactive</span><h4 class="wtitle">'+title+'</h4>'+(desc?'<p class="wdesc">'+desc+'</p>':'')+'<div class="wbody"></div>';return $('.wbody',root);}
+function seg(container,options,value,onChange,label){
+  const wrap=h('<div class="seg" role="group" aria-label="'+label+'"></div>');
+  function set(v){value=v;Array.from(wrap.children).forEach((b,i)=>b.setAttribute('aria-pressed',String(options[i].value===v)));}
+  options.forEach(o=>{const b=h('<button type="button" aria-pressed="false">'+o.label+'</button>');b.addEventListener('click',()=>{set(o.value);onChange(o.value);});wrap.appendChild(b);});
+  set(value);container.appendChild(wrap);return {set};
+}
+
+/* ---------- chart helper (inline SVG) ---------- */
+function niceMax(m){const st=m<=3?0.5:m<=6?1:2;return Math.ceil(m/st)*st;}
+function stepTicks(a,b,st){const t=[];for(let v=a;v<=b+1e-9;v+=st)t.push(+v.toFixed(6));return t;}
+function epochTicks(n){const st=n<=12?1:5,t=[1];for(let v=st;v<=n;v+=st)if(v>1)t.push(v);return t;}
+function chart(o){
+  const W=o.W||640,H=o.H||300,M=Object.assign({l:52,r:16,t:16,b:40},o.M||{});
+  const iw=W-M.l-M.r,ih=H-M.t-M.b,x0=o.x[0],x1=o.x[1],y0=o.y[0],y1=o.y[1];
+  const X=v=>M.l+(v-x0)/(x1-x0)*iw,Y=v=>M.t+ih-(v-y0)/(y1-y0)*ih;
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.label||'Chart')+'">';
+  (o.yt||[]).forEach(t=>{s+='<line x1="'+M.l+'" x2="'+(W-M.r)+'" y1="'+Y(t).toFixed(1)+'" y2="'+Y(t).toFixed(1)+'" stroke="#e4dcfa"/><text x="'+(M.l-8)+'" y="'+(Y(t)+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="#5a4f78">'+(o.yf?o.yf(t):t)+'</text>';});
+  (o.xt||[]).forEach(t=>{s+='<text x="'+X(t).toFixed(1)+'" y="'+(H-M.b+17)+'" text-anchor="middle" font-size="11" fill="#5a4f78">'+(o.xf?o.xf(t):t)+'</text>';});
+  s+='<line x1="'+M.l+'" x2="'+(W-M.r)+'" y1="'+(M.t+ih)+'" y2="'+(M.t+ih)+'" stroke="#a78bfa"/>';
+  if(o.xlabel)s+='<text x="'+(M.l+iw/2)+'" y="'+(H-5)+'" text-anchor="middle" font-size="12" font-weight="700" fill="#2e1065">'+esc(o.xlabel)+'</text>';
+  if(o.ylabel)s+='<text transform="translate(13 '+(M.t+ih/2)+') rotate(-90)" text-anchor="middle" font-size="12" font-weight="700" fill="#2e1065">'+esc(o.ylabel)+'</text>';
+  (o.hl||[]).forEach(v=>{s+='<line x1="'+M.l+'" x2="'+(W-M.r)+'" y1="'+Y(v.y).toFixed(1)+'" y2="'+Y(v.y).toFixed(1)+'" stroke="'+(v.c||'#a78bfa')+'" stroke-width="'+(v.w||1.5)+'"'+(v.d?' stroke-dasharray="'+v.d+'"':'')+'/>';});
+  (o.vl||[]).forEach(v=>{const x=X(v.x),right=x>W*0.7;s+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+M.t+'" y2="'+(M.t+ih)+'" stroke="'+(v.c||'#8b5cf6')+'" stroke-width="'+(v.w||1.5)+'" stroke-dasharray="'+(v.d||'4 4')+'"/>'+(v.label?'<text x="'+(x+(right?-4:4)).toFixed(1)+'" y="'+(M.t+11)+'" text-anchor="'+(right?'end':'start')+'" font-size="10.5" font-weight="700" fill="#4c1d95">'+esc(v.label)+'</text>':'');});
+  if(o.cur!=null){const x=X(o.cur).toFixed(1);s+='<line x1="'+x+'" x2="'+x+'" y1="'+M.t+'" y2="'+(M.t+ih)+'" stroke="#a78bfa" stroke-width="2"/>';}
+  (o.series||[]).forEach(se=>{
+    if(!se.pts.length)return;
+    s+='<path d="'+se.pts.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join(' ')+'" fill="none" stroke="'+se.c+'" stroke-width="'+(se.w||2.6)+'"'+(se.d?' stroke-dasharray="'+se.d+'"':'')+' stroke-linejoin="round"/>';
+    if(se.m)se.pts.forEach(p=>{const hi=o.cur!=null&&Math.abs(p[0]-o.cur)<1e-9,r=hi?6:3.4,x=X(p[0]),y=Y(p[1]);
+      if(se.m==='c')s+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r+'" fill="'+se.c+'"/>';
+      else if(se.m==='s')s+='<rect x="'+(x-r).toFixed(1)+'" y="'+(y-r).toFixed(1)+'" width="'+2*r+'" height="'+2*r+'" fill="#fff" stroke="'+se.c+'" stroke-width="2.2"/>';
+      else s+='<path d="M'+x.toFixed(1)+' '+(y-r-1).toFixed(1)+' L'+(x+r+1).toFixed(1)+' '+(y+r).toFixed(1)+' L'+(x-r-1).toFixed(1)+' '+(y+r).toFixed(1)+' Z" fill="#fff" stroke="'+se.c+'" stroke-width="2.2"/>';});
+  });
+  (o.dots||[]).forEach(d=>{s+='<circle cx="'+X(d.x).toFixed(1)+'" cy="'+Y(d.y).toFixed(1)+'" r="6" fill="'+d.c+'" stroke="#fff" stroke-width="2"/>';});
+  return s+'</svg>';
+}
+function legendHtml(S){return S.map(se=>'<span><i style="border-color:'+se.c+';'+(se.d?'border-top-style:dashed':'')+'"></i>'+se.n+'</span>').join('');}
+function fmtLR(v){return v.toFixed(6).replace(/0+$/,'').replace(/\.$/,'');}
+
+/* ---------- figures ---------- */
+const CF='https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/';
+function fig(path,alt,cap,w){
+  return '<figure class="fig"><img src="'+CF+path+'" alt="'+esc(alt)+'" loading="lazy"'+(w?' style="max-width:'+w+'px"':'')+' onerror="this.closest(\'.fig\').classList.add(\'broken\')"><div class="fb" role="note">Image not available offline. '+esc(alt)+'</div>'+(cap?'<figcaption>'+cap+'</figcaption>':'')+'</figure>';
+}
+/* ---------- tabs ---------- */
+function mountTabs(root,items){
+  root.classList.add('tabs');
+  const id='t'+(++uid),list=h('<div class="tablist" role="tablist"></div>'),tabs=[],panels=[];
+  items.forEach((it,i)=>{
+    const b=h('<button type="button" role="tab" id="'+id+'-t'+i+'" aria-controls="'+id+'-p'+i+'">'+it.label+'</button>');
+    const p=h('<div role="tabpanel" id="'+id+'-p'+i+'" aria-labelledby="'+id+'-t'+i+'" tabindex="0"></div>');
+    p.innerHTML=it.html;tabs.push(b);panels.push(p);list.appendChild(b);
+  });
+  root.append(list,...panels);
+  function sel(i,focus){tabs.forEach((b,j)=>{const on=i===j;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;panels[j].hidden=!on;});if(focus)tabs[i].focus();}
+  tabs.forEach((b,i)=>{
+    b.addEventListener('click',()=>sel(i));
+    b.addEventListener('keydown',e=>{
+      if(e.key==='ArrowRight'){e.preventDefault();sel((i+1)%tabs.length,true);}
+      else if(e.key==='ArrowLeft'){e.preventDefault();sel((i-1+tabs.length)%tabs.length,true);}
+      else if(e.key==='Home'){e.preventDefault();sel(0,true);}
+      else if(e.key==='End'){e.preventDefault();sel(tabs.length-1,true);}
+    });
+  });
+  sel(0);
+}
+const code=k=>'<pre data-code="'+k+'"></pre>';
+function wQuiz(root,key){
+  const d=QUIZ[key],name='q'+(++uid),L='abcd';
+  root.classList.add('widget');
+  root.innerHTML='<span class="wtag">Check your understanding</span><fieldset><legend>'+d.q+'</legend>'+d.c.map((c,i)=>'<label class="opt"><input type="radio" name="'+name+'" value="'+i+'"><span>'+(d.letters?L[i]+') ':'')+c+'</span><span class="mk"></span></label>').join('')+'</fieldset><div class="qa"><button type="button" class="btn" disabled>Check answer</button><button type="button" class="btn ghost" hidden>Try again</button></div><div class="readout" aria-live="polite" hidden></div>';
+  const [chk,again]=$$('.btn',root),out=$('.readout',root),opts=$$('.opt',root),radios=$$('input',root);
+  radios.forEach(r=>r.addEventListener('change',()=>{chk.disabled=false;}));
+  chk.addEventListener('click',()=>{
+    const v=radios.findIndex(r=>r.checked);if(v<0)return;
+    opts.forEach((o,i)=>{o.classList.remove('ok','bad');$('.mk',o).textContent='';if(i===d.a){o.classList.add('ok');$('.mk',o).textContent='✓ Correct answer';}else if(i===v){o.classList.add('bad');$('.mk',o).textContent='✗ Your choice';}});
+    out.hidden=false;out.innerHTML='<b>'+(v===d.a?'Correct.':'Not quite.')+'</b> '+d.e;
+    chk.hidden=true;again.hidden=false;radios.forEach(r=>r.disabled=true);
+  });
+  again.addEventListener('click',()=>{
+    opts.forEach(o=>{o.classList.remove('ok','bad');$('.mk',o).textContent='';});
+    radios.forEach(r=>{r.checked=false;r.disabled=false;});out.hidden=true;chk.hidden=false;chk.disabled=true;again.hidden=true;
+  });
+}
+
+/* ---------- contents + progress ---------- */
+function wToc(){
+  const secs=$$('main section[data-title]'),ol=$('#toc ol'),btn=$('#tocBtn'),toc=$('#toc');
+  ol.innerHTML=secs.map((s,i)=>'<li><a href="#'+s.id+'"><b>'+String(i+1).padStart(2,'0')+'</b><span>'+s.dataset.title+'</span></a></li>').join('');
+  function close(){toc.hidden=true;btn.setAttribute('aria-expanded','false');}
+  btn.addEventListener('click',()=>{const o=toc.hidden;toc.hidden=!o;btn.setAttribute('aria-expanded',String(o));});
+  ol.addEventListener('click',e=>{if(e.target.closest('a'))close();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!toc.hidden){close();btn.focus();}});
+  document.addEventListener('click',e=>{if(!toc.hidden&&!e.target.closest('#toc')&&!e.target.closest('#tocBtn'))close();});
+  const links=$$('a',ol);
+  if('IntersectionObserver' in window){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){links.forEach(l=>l.removeAttribute('aria-current'));const l=$('a[href="#'+en.target.id+'"]',ol);if(l)l.setAttribute('aria-current','true');}});},{rootMargin:'-30% 0px -60% 0px'});
+    secs.forEach(s=>io.observe(s));
+  }
+  const bar=$('#bar');
+  function prog(){const d=document.documentElement,t=d.scrollHeight-d.clientHeight;bar.style.width=(t>0?Math.min(100,d.scrollTop/t*100):0)+'%';}
+  window.addEventListener('scroll',prog,{passive:true});prog();
+}
+const mk=(n,m,f)=>Array.from({length:n},(_,i)=>Array.from({length:m},(_,j)=>f(i,j)));
+function corr(a,k){const kh=k.length,kw=k[0].length;return mk(a.length-kh+1,a[0].length-kw+1,(i,j)=>{let s=0;for(let p=0;p<kh;p++)for(let q=0;q<kw;q++)s+=a[i+p][j+q]*k[p][q];return s;});}
+const flip=k=>k.slice().reverse().map(r=>r.slice().reverse());
+function padM(a,p){return mk(a.length+2*p,a[0].length+2*p,(i,j)=>{const r=i-p,c=j-p;return r>=0&&r<a.length&&c>=0&&c<a[0].length?a[r][c]:0;});}
+const convFull=(a,k)=>corr(padM(a,k.length-1),flip(k));
+const r2=v=>Math.round(v*1e6)/1e6;
+function matHtml(m,o){o=o||{};return '<div class="mat" style="--c:'+m[0].length+(o.max?';max-width:'+o.max+'px':'')+'">'+m.map((r,i)=>r.map((v,j)=>'<div class="cell'+(o.cls?' '+o.cls(i,j,v):'')+'"'+(o.style?' style="'+o.style(i,j,v)+'"':'')+'>'+(o.fmt?o.fmt(v):r2(v))+'</div>').join('')).join('')+'</div>';}
+const F=(p,alt,cap,w)=>fig(p,alt,cap,w);
+const A='249/',B='046/';
+const FIGS={
+  g1:F(A+'239/original/1.png?1793085261','Google Images visual search','Google Images',520),
+  g2:F(A+'240/original/2.jpg?1793085280','Pinterest visual search','Pinterest',520),
+  g3:F(A+'241/original/3.webp?1793085314','Celebrity look-alike website','“Celebrity look-alike” sites',520),
+  emb:F(A+'243/original/4.svg?1793085347','Images mapped to points in an embedding space, similar images close together','Embedding space: similar content sits close together',520),
+  fe:F(B+'977/original/Screenshot_2023-09-08_at_11.42.18_AM.png?1694153573','Using a pretrained CNN as a feature extractor','A pretrained CNN as a feature extractor',520),
+  cal:F(A+'245/original/4.webp?1793085378','Sample Caltech-101 images','Caltech-101 samples',520),
+  incep:F(A+'249/original/5.jpg?1793085460','The Inception meme','“We need to go deeper”',420),
+  wheat:F(A+'251/original/6.jpeg?1793085526','A photo with wheat, people and sky at different scales','Wheat, people and sky: three elements at three scales',520),
+  mod:F(A+'252/original/7.webp?1793085547','Inception module with four parallel branches','The Inception module',560),
+  goog:F(A+'258/original/8.jpg?1793085626','The full GoogLeNet architecture','GoogLeNet: stacked Inception modules',560),
+  one:F(A+'260/original/9.png?1793085694','A 1x1 convolution mixing channels','A 1×1 convolution mixes channels at each pixel',520),
+  gradn:F(B+'979/original/Screenshot_2023-09-08_at_11.41.56_AM.png?1694153622','Gradient norm of early layers dropping towards zero during training','Gradient norm of early layers drops towards zero',520),
+  skip:F(B+'980/original/Screenshot_2023-09-08_at_11.41.32_AM.png?1694153665','A residual block with a skip connection','Residual block: y = F(x) + x',480),
+  loss:F(B+'981/original/Screenshot_2023-09-08_at_11.41.24_AM.png?1694153692','Loss surface with and without skip connections','Loss surface without and with skip connections (Li et al., 2018)',560),
+  idb:F(B+'983/original/Screenshot_2023-09-08_at_11.41.12_AM.png?1694153731','Identity block','Identity block',480),
+  cvb:F(B+'984/original/Screenshot_2023-09-08_at_11.41.01_AM.png?1694153777','Convolution block','Convolution block',480),
+  r50:F(B+'985/original/Screenshot_2023-09-08_at_11.40.42_AM.png?1694153864','ResNet-50 architecture','ResNet-50 architecture',560),
+  res1:F(A+'948/original/Screenshot_2026-10-28_121812.png?1793170105','Query images with their four nearest neighbours and distances','Queries and their nearest neighbours',760),
+  res2:F(A+'949/original/Screenshot_2026-10-28_121936.png?1793170190','Queries whose four neighbours are all from another class','Complete misses',640),
+  pcav:F(A+'950/original/Screenshot_2026-10-28_122035.png?1793170246','Cumulative variance kept versus number of PCA components','Variance kept vs number of components (line at 150)',480),
+  pcaa:F(A+'952/original/Screenshot_2026-10-28_122117.png?1793170288','Precision at 4 versus PCA dimensions','Precision@4 vs PCA dimensions',480),
+  ts1:F(A+'953/original/Screenshot_2026-10-28_122159.png?1793170333','t-SNE map of 2,500 images coloured by class id','t-SNE of 2,500 images, coloured by class id',520),
+  ts2:F(A+'955/original/Screenshot_2026-10-28_122319.png?1793170417','t-SNE map with image thumbnails','t-SNE with thumbnails',520),
+  ts3:F(A+'957/original/Screenshot_2026-10-28_122327.png?1793170445','t-SNE map with image thumbnails, detail','t-SNE with thumbnails (detail)',520)
+};
+const QUIZ={
+  q1:{q:'Why do we use a pretrained CNN to generate image embeddings?',letters:true,c:['To represent images as numerical feature vectors','To give every image a unique filename','To remove all visual information','To predict only the original classes'],a:0,e:'The feature vector captures useful visual information, allowing images to be compared for similarity.'},
+  q2:{q:'Why does an Inception module use different filter sizes in parallel?',letters:true,c:['To detect patterns at different spatial scales','To eliminate all convolution operations','To assign labels without extracting features','To make every branch produce identical features'],a:0,e:'Smaller filters capture fine details, while larger filters can capture broader patterns.'},
+  q3:{q:'A residual block computes <code>y = F(x) + x</code>. What does <code>x</code> represent?',letters:true,c:['The original input carried through the shortcut','The final predicted class label','The distance between two image embeddings','The number of convolution filters'],a:0,e:'The shortcut carries the input forward, and the block adds it to the learned transformation <code>F(x)</code>.'},
+  q4:{q:'Why do we use PCA to reduce the dimensions of image embeddings?',letters:true,c:['To reduce storage and computation while retaining useful information','To guarantee perfect image retrieval','To generate new training images','To replace the CNN with a classifier'],a:0,e:'PCA projects embeddings into fewer dimensions, which can make similarity search faster and reduce memory use.'}
+};
+const TABS={};
+const P=fmt;
+const bar=(l,v,max,txt)=>'<div class="brow"><span class="bl">'+l+'</span><span class="bt"><span class="bf" style="width:'+Math.max(0.5,v/max*100)+'%"></span></span><span class="bv">'+txt+'</span></div>';
+const svgNS=(w,h,label,inner)=>'<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(label)+'">'+inner+'</svg>';
+
+/* ---------- pixels fail ---------- */
+function wShift(root){
+  const b=shell(root,'Why raw pixels are a poor similarity measure','Toy example: an 8 × 8 picture of a plus sign. A copy shifted by one pixel, or made brighter, is the same content, yet the sum of squared pixel differences is large.');
+  let sh=0,br=0;const ctrl=h('<div class="ctrl"></div>'),pn=h('<div class="duo"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,pn,ro);
+  seg(ctrl,[{label:'Shift 0 px',value:0},{label:'Shift 1 px',value:1},{label:'Shift 2 px',value:2}],sh,v=>{sh=v;draw();},'Shift');
+  seg(ctrl,[{label:'Same brightness',value:0},{label:'+30% brighter',value:.3}],br,v=>{br=v;draw();},'Brightness');
+  const base=mk(8,8,(i,j)=>(i>=2&&i<=5&&(j===3||j===4))||((i===3||i===4)&&j>=1&&j<=6)?1:0);
+  const mkm=m=>matHtml(m,{max:200,style:(i,j,v)=>'background:'+mix(Math.min(1,v))+';color:'+ink(Math.min(1,v)),fmt:v=>''});
+  function draw(){const alt=mk(8,8,(i,j)=>{const jj=j-sh;return (jj>=0&&jj<8?base[i][jj]:0)*(1+br);});let ssd=0;for(let i=0;i<8;i++)for(let j=0;j<8;j++)ssd+=(base[i][j]-alt[i][j])**2;
+    pn.innerHTML='<div class="pn"><div class="pl">Original</div>'+mkm(base)+'</div><div class="pn"><div class="pl">Same picture, shifted / brighter</div>'+mkm(alt)+'</div>';
+    ro.innerHTML='Sum of squared pixel differences: <b>'+r2(ssd)+'</b>'+(ssd===0?' (identical pixels).':'. Same content, but pixel by pixel the images disagree. Embeddings from a CNN are designed to stay close in such cases.');}
+  draw();
+}
+
+/* ---------- euclid vs cosine ---------- */
+function wCos(root){
+  const b=shell(root,'Euclidean distance vs cosine similarity','Query q is fixed. Set the direction (and length) of two candidates. With L2-normalized (unit-length) vectors both measures rank A and B identically; without normalization they can disagree.');
+  let norm=true;const S={a:{ang:40,len:2},b:{ang:70,len:1}};const Q={ang:30,len:1};
+  const ctrl=h('<div class="ctrl"></div>'),pl=h('<div class="plot"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,pl,ro);
+  seg(ctrl,[{label:'L2-normalized',value:true},{label:'Raw lengths',value:false}],norm,v=>{norm=v;draw();},'Normalization');
+  const sl=[['a','ang','Angle of A (°)',0,180,40],['b','ang','Angle of B (°)',0,180,70],['a','len','Length of A',.3,2,2],['b','len','Length of B',.3,2,1]];
+  sl.forEach(([k,f,l,mn,mx,v])=>{const lab=h('<label class="fld">'+l+' <span class="zv"></span><input type="range" min="'+mn+'" max="'+mx+'" step="'+(f==='ang'?1:.1)+'" value="'+v+'" aria-label="'+l+'"></label>');lab._k=[k,f];ctrl.appendChild(lab);$('input',lab).addEventListener('input',e=>{S[k][f]=+e.target.value;draw();});});
+  const vec=o=>{const l=norm?1:o.len,r=o.ang*Math.PI/180;return [l*Math.cos(r),l*Math.sin(r)];};
+  const dist=(u,v)=>Math.hypot(u[0]-v[0],u[1]-v[1]),cosf=(u,v)=>(u[0]*v[0]+u[1]*v[1])/(Math.hypot(...u)*Math.hypot(...v));
+  function draw(){
+    $$('label.fld',ctrl).forEach(l=>{if(l._k){$('.zv',l).textContent=S[l._k[0]][l._k[1]];if(l._k[1]==='len')l.style.opacity=norm?.45:1;}});
+    const q=vec(Q),a=vec(S.a),bb=vec(S.b),W=360,H=280,cx=40,cy=H-30,sc=95,X=p=>cx+p[0]*sc,Y=p=>cy-p[1]*sc;
+    let s='<circle cx="'+cx+'" cy="'+cy+'" r="'+sc+'" fill="none" stroke="#c4b5fd" stroke-dasharray="4 4"/><line x1="'+cx+'" y1="'+cy+'" x2="'+(W-10)+'" y2="'+cy+'" stroke="#e4dcfa"/>';
+    [[q,'q','#2e1065'],[a,'A','#7c3aed'],[bb,'B','#a78bfa']].forEach(([p,n,c])=>{s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+X(p)+'" y2="'+Y(p)+'" stroke="'+c+'" stroke-width="2.4"/><circle cx="'+X(p)+'" cy="'+Y(p)+'" r="6" fill="'+c+'"/><text x="'+(X(p)+9)+'" y="'+(Y(p)-6)+'" font-size="13" font-weight="700" fill="'+c+'">'+n+'</text>';});
+    pl.innerHTML=svgNS(W,H,'Query and two candidate vectors',s);
+    const da=dist(q,a),db=dist(q,bb),ca=cosf(q,a),cb=cosf(q,bb),eu=da<db?'A':'B',co=ca>cb?'A':'B';
+    ro.innerHTML='Euclidean: d(q,A) = <b>'+da.toFixed(3)+'</b>, d(q,B) = <b>'+db.toFixed(3)+'</b> → closest is <b>'+eu+'</b><br>Cosine similarity: cos(q,A) = <b>'+ca.toFixed(3)+'</b>, cos(q,B) = <b>'+cb.toFixed(3)+'</b> → most similar is <b>'+co+'</b><br>'+(eu===co?'Same ranking.':'<b>Different rankings</b>: lengths matter for Euclidean distance, not for cosine.');}
+  draw();
+}
+
+/* ---------- Caltech-101 ---------- */
+const CAL=[["pizza", 53], ["watch", 239], ["pigeon", 45], ["stop_sign", 64], ["wild_cat", 34], ["octopus", 35], ["soccer_ball", 64], ["hawksbill", 100], ["crab", 73], ["cup", 57], ["stapler", 45], ["binocular", 33], ["trilobite", 86], ["pagoda", 47], ["mayfly", 40], ["helicopter", 88], ["llama", 78], ["ferry", 67], ["ceiling_fan", 47], ["elephant", 64], ["hedgehog", 54], ["chandelier", 107], ["gerenuk", 34], ["yin_yang", 60], ["chair", 62], ["dolphin", 65], ["kangaroo", 86], ["joshua_tree", 64], ["crocodile_head", 51], ["brontosaurus", 43], ["minaret", 76], ["ewer", 85], ["brain", 98], ["emu", 53], ["windsor_chair", 56], ["dragonfly", 68], ["cougar_body", 47], ["crayfish", 70], ["flamingo", 67], ["lobster", 41], ["ant", 42], ["euphonium", 64], ["barrel", 47], ["tick", 49], ["okapi", 39], ["electric_guitar", 75], ["Motorbikes", 798], ["metronome", 32], ["buddha", 85], ["wrench", 39], ["cellphone", 59], ["gramophone", 51], ["panda", 38], ["dollar_bill", 52], ["rooster", 49], ["strawberry", 35], ["ketch", 114], ["crocodile", 50], ["laptop", 81], ["stegosaurus", 59], ["saxophone", 40], ["sea_horse", 57], ["starfish", 86], ["Faces", 435], ["bass", 54], ["rhino", 59], ["ibis", 80], ["pyramid", 57], ["scorpion", 84], ["nautilus", 55], ["menorah", 87], ["wheelchair", 59], ["cougar_face", 69], ["Faces_easy", 435], ["lamp", 61], ["Leopards", 200], ["garfield", 34], ["anchor", 42], ["umbrella", 75], ["flamingo_head", 45], ["accordion", 55], ["revolver", 82], ["snoopy", 35], ["lotus", 66], ["dalmatian", 67], ["water_lilly", 37], ["platypus", 34], ["beaver", 46], ["sunflower", 85], ["grand_piano", 99], ["butterfly", 91], ["cannon", 43], ["airplanes", 800], ["headphone", 42], ["inline_skate", 31], ["bonsai", 128], ["scissors", 39], ["car_side", 123], ["camera", 50], ["mandolin", 43], ["schooner", 63]];
+function wCaltech(root){
+  const b=shell(root,'Caltech-101: images per category','101 categories, 8,677 images (background category removed). Sort, filter and compare class sizes.');
+  let sort='size';const ctrl=h('<div class="ctrl"></div>'),flt=h('<label class="fld">Filter by name<input type="search" placeholder="e.g. lotus" aria-label="Filter categories"></label>'),out=h('<div class="bars" style="max-height:340px;overflow:auto"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');
+  seg(ctrl,[{label:'Largest first',value:'size'},{label:'Smallest first',value:'small'},{label:'A to Z',value:'az'}],sort,v=>{sort=v;draw();},'Sort');ctrl.appendChild(flt);b.append(ctrl,out,ro);
+  $('input',flt).addEventListener('input',draw);
+  function draw(){const q=$('input',flt).value.toLowerCase();let r=CAL.filter(c=>c[0].toLowerCase().includes(q));
+    r.sort(sort==='size'?(x,y)=>y[1]-x[1]:sort==='small'?(x,y)=>x[1]-y[1]:(x,y)=>x[0].localeCompare(y[0]));
+    out.innerHTML=r.map(c=>bar(c[0],c[1],800,c[1])).join('')||'<p>No match.</p>';
+    ro.innerHTML='Showing <b>'+r.length+'</b> of 101 categories ('+P(r.reduce((a,c)=>a+c[1],0))+' images). Range: 31 to 800 images per category (the lecture states 40 to 800 before cleaning; the largest are airplanes 800, Motorbikes 798, Faces 435).';}
+  draw();
+}
+
+/* ---------- Inception ---------- */
+function wIncep(root){
+  const b=shell(root,'Build an Inception module','Set the input channels and the filters of the four branches. Padding keeps height and width, so the outputs concatenate along the channel dimension. The defaults are module “3a” of GoogLeNet.');
+  const v={in:192,f1:64,r3:96,f3:128,r5:16,f5:32,pp:32};const names=[['in','Input channels'],['f1','1×1 filters'],['r3','1×1 reduce → 3×3'],['f3','3×3 filters'],['r5','1×1 reduce → 5×5'],['f5','5×5 filters'],['pp','Pool projection (1×1)']];
+  const fl=h('<div class="ctrl"></div>'),out=h('<div class="duo"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(fl,out,ro);
+  names.forEach(([k,l])=>{const lab=h('<label class="fld">'+l+'<input type="number" min="1" value="'+v[k]+'"></label>');$('input',lab).addEventListener('input',e=>{v[k]=Math.max(1,parseInt(e.target.value,10)||1);draw();});fl.appendChild(lab);});
+  const cv=(i,o,k)=>i*o*k*k+o;
+  function draw(){const p1=cv(v.in,v.f1,1),p3=cv(v.in,v.r3,1)+cv(v.r3,v.f3,3),p5=cv(v.in,v.r5,1)+cv(v.r5,v.f5,5),pp=cv(v.in,v.pp,1),tot=p1+p3+p5+pp,oc=v.f1+v.f3+v.f5+v.pp;
+    const d5=v.in*v.f5*25,r5=v.in*v.r5+v.r5*v.f5*25;
+    out.innerHTML='<div class="card"><h4>Output</h4><p>Channels = '+v.f1+' + '+v.f3+' + '+v.f5+' + '+v.pp+' = <b>'+oc+'</b></p><p>Same height and width as the input.</p></div><div class="card"><h4>Parameters (with biases)</h4>'+bar('1×1',p1,tot,P(p1))+bar('1×1 → 3×3',p3,tot,P(p3))+bar('1×1 → 5×5',p5,tot,P(p5))+bar('pool → 1×1',pp,tot,P(pp))+'<p>Total <b>'+P(tot)+'</b></p></div>';
+    ro.innerHTML='<b>The 1×1 saving</b> (weights only, no biases): a direct 5×5 convolution from '+v.in+' to '+v.f5+' channels has <b>'+P(d5)+'</b> weights; reducing to '+v.r5+' channels first gives <b>'+P(r5)+'</b> → <b>'+(d5/r5).toFixed(1)+'× fewer</b>.'+(v.in===192&&v.f5===32&&v.r5===16?' This matches the lecture: 153,600 vs 15,872, 9.7× fewer.':'');}
+  draw();
+}
+
+/* ---------- vanishing gradient ---------- */
+function wGrad(root){
+  const b=shell(root,'Gradients through stacked blocks','Backpropagation multiplies one term per block. Plain: each block contributes dF/dx = g. Residual: each block contributes 1 + g. Chart shows the gradient factor reaching the first layer (log scale).');
+  let g=0.1,n=10;const ctrl=h('<div class="ctrl"></div>'),leg=h('<div class="legend"></div>'),pl=h('<div class="plot"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,leg,pl,ro);
+  const mkS=(l,mn,mx,st,v,fn)=>{const lab=h('<label class="fld">'+l+' <span class="zv"></span><input type="range" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+v+'" aria-label="'+l+'"></label>');$('input',lab).addEventListener('input',e=>{fn(+e.target.value);draw();});ctrl.appendChild(lab);return lab;};
+  const lg=mkS('Local gradient g per block',0.05,1.5,0.05,g,v=>g=v),ln=mkS('Number of blocks n',1,30,1,n,v=>n=v);
+  function draw(){$('.zv',lg).textContent=g.toFixed(2);$('.zv',ln).textContent=n;
+    const pts=f=>Array.from({length:30},(_,i)=>[i+1,(i+1)*Math.log10(f)]),S=[{n:'Plain network: g^n',pts:pts(g),c:'#2e1065',d:'',m:'c'},{n:'With skip links: (1 + g)^n',pts:pts(1+g),c:'#8b5cf6',d:'7 5',m:'s'}];
+    const lo=Math.floor(Math.min(0,30*Math.log10(g))/5)*5,hi=Math.ceil(Math.max(1,30*Math.log10(1+g))/5)*5;leg.innerHTML=legendHtml(S);
+    pl.innerHTML=chart({W:640,H:270,M:{l:64},x:[1,30],y:[lo,hi],xt:[1,5,10,15,20,25,30],yt:stepTicks(lo,hi,5),yf:t=>'10^'+t,xlabel:'Blocks',label:'Gradient factor reaching the first layer, log scale',series:S,cur:n});
+    ro.innerHTML='n = <b>'+n+'</b>, g = <b>'+g.toFixed(2)+'</b>: plain <b>'+Math.pow(g,n).toExponential(1)+'</b> · with skip links <b>'+Math.pow(1+g,n).toFixed(2)+'</b>.'+(n===10&&Math.abs(g-0.1)<1e-9?' This is the lecture’s check: 1.0e-10 vs 2.59.':'')+'<br>Because d(F(x) + x)/dx = dF/dx + 1, the gradient does not vanish just because dF/dx is small. (Idealized: real gradients vary from layer to layer.)';}
+  draw();
+}
+
+/* ---------- models ---------- */
+function wModels(root){
+  const b=shell(root,'Pretrained models compared','Torchvision weights, evaluated on the ImageNet-1k validation set with a single 224×224 crop.');
+  let m='p';const D=[['AlexNet',61.1,56.5,79.1],['VGG16',138.4,71.6,90.4],['VGG19',143.7,72.4,90.9],['GoogLeNet',6.6,69.8,89.5],['ResNet-50',25.6,76.1,92.9]];
+  const ctrl=h('<div class="ctrl"></div>'),out=h('<div class="bars"></div>'),ro=h('<div class="readout"></div>');b.append(ctrl,out,ro);
+  seg(ctrl,[{label:'Parameters (M)',value:'p'},{label:'Top-1 accuracy (%)',value:'t1'},{label:'Top-5 accuracy (%)',value:'t5'}],m,v=>{m=v;draw();},'Metric');
+  function draw(){const i={p:1,t1:2,t5:3}[m],mx=m==='p'?160:100;out.innerHTML=D.map(r=>bar(r[0],r[i],mx,r[i]+(m==='p'?'M':'%'))).join('');
+    ro.innerHTML=m==='p'?'GoogLeNet is the smallest (6.6M) though deeper than AlexNet and VGG: it replaced the large FC layers with global average pooling. ResNet-50 has about five times fewer parameters than VGG16 or VGG19 and higher accuracy.':'ResNet-50 is clearly more accurate than GoogLeNet (76.1% vs 69.8% top-1), although GoogLeNet is the smaller model.';}
+  draw();
+}
+
+/* ---------- residual block shape tester ---------- */
+function wBlock(root){
+  const b=shell(root,'Identity block or convolution block?','Choose the block type and settings. The identity block adds the input directly, so the last filter count must equal the input channels. The convolution block puts a 1×1 convolution (same stride) on the skip path so the shapes match.');
+  let type='conv';const v={c:256,h:56,f1:128,f2:128,f3:512,s:2};
+  const ctrl=h('<div class="ctrl"></div>'),fl=h('<div class="ctrl"></div>'),flow=h('<div class="flow" style="gap:6px"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,fl,flow,ro);
+  const pr=h('<div class="seg" role="group" aria-label="Presets"></div>');
+  [['Lecture: IdentityBlock(256, [64,64,256])',()=>{type='id';Object.assign(v,{c:256,h:56,f1:64,f2:64,f3:256,s:1});}],['Lecture: ConvBlock(256, [128,128,512], stride 2)',()=>{type='conv';Object.assign(v,{c:256,h:56,f1:128,f2:128,f3:512,s:2});}]].forEach(([l,fn])=>{const bt=h('<button type="button" aria-pressed="false">'+l+'</button>');bt.addEventListener('click',()=>{fn();build();draw();});pr.appendChild(bt);});
+  ctrl.appendChild(pr);
+  const sgc=seg(ctrl,[{label:'Identity block',value:'id'},{label:'Convolution block',value:'conv'}],type,x=>{type=x;if(type==='id')v.s=1;build();draw();},'Block type');
+  const inputs={};[['c','Input channels'],['h','Height = width'],['f1','Filters f1'],['f2','Filters f2'],['f3','Filters f3'],['s','Stride']].forEach(([k,l])=>{const lab=h('<label class="fld">'+l+'<input type="number" min="1" value="'+v[k]+'"></label>');inputs[k]=$('input',lab);inputs[k].addEventListener('input',e=>{v[k]=Math.max(1,parseInt(e.target.value,10)||1);draw();});fl.appendChild(lab);});
+  function build(){sgc.set(type);Object.keys(inputs).forEach(k=>inputs[k].value=v[k]);inputs.s.disabled=type==='id';}
+  function draw(){const st=type==='id'?1:v.s,oh=Math.ceil(v.h/st),ok=type==='id'?v.f3===v.c:true,L=['Conv 1×1 ('+v.f1+')','BatchNorm','ReLU','Conv 3×3 ('+v.f2+')','BatchNorm','ReLU','Conv 1×1 ('+v.f3+')','BatchNorm'];
+    flow.innerHTML=L.map((x,i)=>(i?'<i>→</i>':'')+'<span>'+x+'</span>').join('')+'<i>+</i><span>'+(type==='id'?'input x':'1×1 conv + BN on x')+'</span><i>→</i><span>ReLU</span>';
+    ro.innerHTML=ok?'Input <code>(1, '+v.c+', '+v.h+', '+v.h+')</code> → output <code>(1, '+v.f3+', '+oh+', '+oh+')</code>. '+(type==='id'?(v.f3===v.c?'The shape is unchanged, so <code>x</code> can be added directly.':''):'Skip path: 1×1 conv with stride '+st+' maps <code>'+v.c+'</code> to <code>'+v.f3+'</code> channels so both paths match.'):'<b>Not valid for an identity block:</b> the lecture’s code asserts that the last filter count ('+v.f3+') equals the input channels ('+v.c+'). Use a convolution block when the shape changes.';}
+  build();draw();
+}
+
+/* ---------- ResNet-50 ---------- */
+function r50(){const bn=c=>2*c,cv=(i,o,k)=>i*o*k*k;const stem=cv(3,64,7)+bn(64);const cfg=[[64,[64,64,256],1,3],[256,[128,128,512],2,4],[512,[256,256,1024],2,6],[1024,[512,512,2048],2,3]];let sp=56;const idp=(c,f)=>cv(c,f[0],1)+bn(f[0])+cv(f[0],f[1],3)+bn(f[1])+cv(f[1],f[2],1)+bn(f[2]);
+  const stages=cfg.map(([ci,f,s,n],i)=>{const cb=idp(ci,f)+cv(ci,f[2],1)+bn(f[2]);const ib=idp(f[2],f);if(i>0)sp/=2;return {i:i+1,n,f,ci,co:f[2],sp,cb,ib,p:cb+(n-1)*ib};});
+  return {stem,stages,total:stem+stages.reduce((a,s)=>a+s.p,0)};}
+function wRes(root){
+  const b=shell(root,'ResNet-50, stage by stage','A stem, four stages of bottleneck blocks (3, 4, 6, 3) and global average pooling. Select a part to see shapes and the parameter count, computed from the layer definitions.');
+  const R=r50();let sel=0;const flow=h('<div class="flow" style="gap:6px"></div>'),mx=h('<div class="mx"><ul class="layers"></ul><div class="ldetail" aria-live="polite"></div></div>');b.append(flow,mx);
+  const ul=$('.layers',mx),dt=$('.ldetail',mx),parts=[{n:'Stem',o:'(64, 56, 56)',p:R.stem}].concat(R.stages.map(s=>({n:'Stage '+s.i+' ('+s.n+' blocks)',o:'('+s.co+', '+s.sp+', '+s.sp+')',p:s.p,s}))).concat([{n:'Global average pooling',o:'(2048)',p:0}]);const mp=Math.max(...parts.map(p=>p.p));
+  function draw(){flow.innerHTML='<span>(3, 224, 224)</span>'+parts.map((p,i)=>'<i>→</i><span style="'+(i===sel?'background:var(--v900);color:#fff;border-color:var(--v900)':'')+'">'+p.o+'</span>').join('');
+    ul.innerHTML=parts.map((p,i)=>'<li><button type="button" class="lay" data-i="'+i+'" aria-pressed="'+(i===sel)+'"><span class="ln">'+p.n+'</span><span class="ls">'+p.o+'</span><span class="lp">'+(p.p?P(p.p):'—')+'</span><span class="lb"><i style="width:'+(p.p/mp*100)+'%"></i></span></button></li>').join('');
+    const p=parts[sel];let d='<h4>'+p.n+'</h4>';
+    if(sel===0)d+='<p>7×7 conv, stride 2 (64 filters) + BatchNorm + ReLU, then 3×3 max-pool, stride 2.</p><p>(3, 224, 224) → (64, 56, 56)</p>';
+    else if(p.s){const s=p.s;d+='<p>1 convolution block (shape changes) followed by '+(s.n-1)+' identity blocks. Filters <code>['+s.f.join(', ')+']</code>.</p><p>Output <code>('+s.co+', '+s.sp+', '+s.sp+')</code></p><p>Conv block: <b>'+P(s.cb)+'</b> · identity block: <b>'+P(s.ib)+'</b></p>';}
+    else d+='<p>Averages each 7×7 map to one number: (2048, 7, 7) → 2,048-d vector. <b>This is the embedding.</b></p>';
+    d+='<p>Parameters: <b>'+(p.p?P(p.p):'0')+'</b></p><p style="border-top:1px solid rgba(255,255,255,.2);padding-top:8px;margin-top:10px">Whole backbone (no classifier): <b>'+P(R.total)+'</b>'+(R.total===23508032?', identical to torchvision’s reference ResNet-50 without its <code>fc</code> layer.':'')+'</p>';dt.innerHTML=d;}
+  mx.addEventListener('click',e=>{const t=e.target.closest('[data-i]');if(!t)return;sel=+t.dataset.i;draw();$('[data-i="'+sel+'"]',ul).focus();});draw();
+}
+
+/* ---------- distances / precision ---------- */
+function wDist(root){
+  const b=shell(root,'How far are similar and unrelated images?','Median Euclidean distances between L2-normalized embeddings (1,000 random queries, 5,000 random pairs).');
+  const D=[['1st nearest neighbour',0.450],['4th nearest neighbour',0.512],['Random pair',0.956]];
+  b.innerHTML='<div class="bars">'+D.map(d=>bar(d[0],d[1],1,d[1].toFixed(3))).join('')+'</div><div class="readout">Neighbours are about <b>half</b> as far away as random pairs (0.45 vs 0.96): the embedding separates “similar” from “unrelated” well, and even the 4th neighbour is still much closer than a random image. For unit-length vectors the largest possible distance is 2.</div>';
+}
+const FAIL=[['octopus',35,37.9,'brontosaurus'],['crocodile',50,46.5,'crocodile_head'],['water_lilly',37,48.6,'lotus'],['brontosaurus',43,51.2,'elephant'],['anchor',42,51.2,'dragonfly'],['sea_horse',57,51.3,'hawksbill'],['lobster',41,54.9,'crayfish'],['wrench',39,57.7,'electric_guitar']];
+function wFail(root){
+  const b=shell(root,'Where does the search fail?','The 8 worst categories by precision@4. Select one to see what it is most often confused with.');
+  let sel=0;const mx=h('<div class="mx"><ul class="layers"></ul><div class="ldetail" aria-live="polite"></div></div>');b.append(mx,h('<div class="readout">Overall precision@4 is <b>88.19%</b>. Queries whose four neighbours all come from another class: <b>242 (2.8%)</b>. Precision@4 uses class labels as a proxy for visual similarity, so two images from different classes can still look alike: always look at the results too.</div>'));
+  const ul=$('.layers',mx),dt=$('.ldetail',mx);
+  function draw(){ul.innerHTML=FAIL.map((f,i)=>'<li><button type="button" class="lay" data-i="'+i+'" aria-pressed="'+(i===sel)+'"><span class="ln">'+f[0]+'</span><span class="ls">'+f[1]+' images</span><span class="lp">'+f[2].toFixed(1)+'%</span><span class="lb"><i style="width:'+f[2]+'%"></i></span></button></li>').join('');
+    const f=FAIL[sel];dt.innerHTML='<h4>'+f[0]+'</h4><p>Score: <b>'+f[2].toFixed(1)+'%</b> of its neighbours are the right class</p><p>Most often confused with: <b>'+f[3]+'</b></p>';}
+  mx.addEventListener('click',e=>{const t=e.target.closest('[data-i]');if(!t)return;sel=+t.dataset.i;draw();$('[data-i="'+sel+'"]',ul).focus();});draw();
+}
+
+/* ---------- PCA ---------- */
+const PCA_D=[2,5,10,20,50,100,150,200],PCA_P=[28.25,45.38,64.66,79.9,86.61,88.27,88.43,88.26],PCA_T=[0.3,0.3,0.3,0.3,0.4,0.6,0.8,0.9];
+function wPca(root){
+  const b=shell(root,'How many PCA dimensions do we need?','Measured precision@4 for each size. Select a size to compare accuracy, search time and memory with the original 2,048-d features.');
+  let met='p',i=6,N=1000000;const ctrl=h('<div class="ctrl"></div>');seg(ctrl,[{label:'Precision@4 (%)',value:'p'},{label:'Search time for all queries (s)',value:'t'}],met,v=>{met=v;draw();},'Metric');
+  const bt=h('<div class="seg" role="group" aria-label="Dimensions"></div>');PCA_D.forEach((d,k)=>{const x=h('<button type="button" aria-pressed="false">'+d+'</button>');x.addEventListener('click',()=>{i=k;draw();});bt.appendChild(x);});ctrl.append(h('<span class="note">PCA dimensions</span>'),bt);
+  const nl=h('<label class="fld">Images in the index<input type="number" min="1" value="1000000" aria-label="Number of images"></label>');$('input',nl).addEventListener('input',e=>{N=Math.max(1,parseFloat(e.target.value)||1);draw();});ctrl.appendChild(nl);
+  const pl=h('<div class="plot"></div>'),ro=h('<div class="readout" aria-live="polite"></div>');b.append(ctrl,pl,ro);
+  function draw(){$$('button',bt).forEach((x,k)=>x.setAttribute('aria-pressed',String(k===i)));const P_=met==='p',v=P_?PCA_P:PCA_T,y=P_?[0,100]:[0,1.2];
+    pl.innerHTML=chart({W:640,H:260,x:[0,7],y,xt:[0,1,2,3,4,5,6,7],xf:k=>PCA_D[k],yt:P_?[0,25,50,75,100]:[0,.3,.6,.9,1.2],yf:t=>P_?t+'%':t,xlabel:'PCA dimensions',label:(P_?'Precision@4':'Search time')+' for each PCA size',series:[{n:'',pts:v.map((q,k)=>[k,q]),c:'#2e1065',d:'',m:'c'}],hl:P_?[{y:88.19,c:'#8b5cf6',d:'6 5',w:1.6}]:[{y:7.2>1.2?1.2:7.2,c:'#8b5cf6',d:'6 5',w:0}],cur:i});
+    const d=PCA_D[i],by=4*d,orig=4*2048;
+    ro.innerHTML='<b>'+d+' dimensions</b>: precision@4 <b>'+PCA_P[i]+'%</b> (original 2,048-d: <b>88.19%</b>, dashed line), search time <b>'+PCA_T[i]+' s</b> (original: <b>7.2 s</b>, off the chart). Each vector is '+(2048/d).toFixed(1)+'× shorter.<br>Memory at 32 bits per feature: <b>'+P(by)+' bytes</b> per image vs 8,192 bytes; for '+P(N)+' images about <b>'+(N*by/1e9).toFixed(2)+' GB</b> vs <b>'+(N*orig/1e9).toFixed(2)+' GB</b> (computed).'+(d===150?'<br>150 dimensions keep 87.6% of the variance and give 88.43% (vs 88.19% originally): about 14× shorter with almost no loss.':'');}
+  draw();
+}
+
+/* ---------- scaling ---------- */
+function wScale(root){
+  const b=shell(root,'Search time: brute force vs PCA vs Annoy','Time per query measured on 8,677 vectors. Then extrapolate brute force to larger collections (a linear estimate, since brute force compares the query with every vector).');
+  let log=false,N=8677;const ctrl=h('<div class="ctrl"></div>'),out=h('<div class="bars"></div>'),ex=h('<div class="readout" aria-live="polite"></div>');
+  seg(ctrl,[{label:'Linear scale',value:false},{label:'Log scale',value:true}],log,v=>{log=v;draw();},'Scale');
+  const sl=h('<label class="fld">Collection size <span class="zv"></span><input type="range" min="0" max="100" value="0" aria-label="Collection size"></label>');
+  b.append(ctrl,out,sl,ex);
+  const T=[['Brute force, 2048-d',25.501],['Brute force, PCA 150-d',0.771],['Annoy, PCA 150-d',0.251]];
+  $('input',sl).addEventListener('input',e=>{N=Math.round(8677*Math.pow(10000000/8677,+e.target.value/100));draw();});
+  function draw(){const mx=25.501,f=v=>log?(Math.log10(v)-Math.log10(0.1))/(Math.log10(30)-Math.log10(0.1)):v/mx;
+    out.innerHTML=T.map(t=>bar(t[0],Math.max(.005,f(t[1])),1,t[1].toFixed(3)+' ms')).join('')+(log?'<p class="note">Log scale from 0.1 ms to 30 ms.</p>':'');
+    $('.zv',sl).textContent=P(N);const k=N/8677,fmtT=ms=>ms>=1000?(ms/1000).toFixed(ms>=1e4?0:1)+' s':ms.toFixed(1)+' ms';
+    ex.innerHTML='<b>'+P(N)+' vectors</b> ('+k.toFixed(0)+'× our dataset): brute force 2048-d ≈ <b>'+fmtT(25.501*k)+'</b> per query, PCA 150-d ≈ <b>'+fmtT(0.771*k)+'</b>. The lecture’s rough figure at 10 million vectors is about a second per query on one CPU core. Annoy is approximate: it uses a tree index so a query does not look at every item, at the cost of occasionally missing a true neighbour (recall@5 = 93.5% here), so no linear estimate is shown for it.';}
+  draw();
+}
+
+/* ---------- mount ---------- */
+function fillCode(){$$('[data-code]').forEach(el=>{el.textContent=CODE[el.dataset.code]||'';});}
+const W={shift:wShift,cos:wCos,caltech:wCaltech,incep:wIncep,grad:wGrad,models:wModels,block:wBlock,res:wRes,dist:wDist,fail:wFail,pca:wPca,scale:wScale};
+function init(){
+  $$('[data-fig]').forEach(el=>{el.innerHTML=el.dataset.fig.split(',').map(k=>FIGS[k]||'').join('');});
+  fillCode();
+  $$('[data-w]').forEach(el=>{const k=el.dataset.w;if(k==='quiz'){wQuiz(el,el.dataset.q);return;}if(W[k])W[k](el);});
+  wToc();
+}
+const CODE={"dl": "import os\nimport zipfile\nimport urllib.request\nimport shutil\n\nDATA_DIR = \"data\"\nZIP_PATH = os.path.join(DATA_DIR, \"caltech-101.zip\")\nEXTRACT_DIR = os.path.join(DATA_DIR, \"caltech101\")\n\nURL = \"https://data.caltech.edu/records/mzrjq-6wc02/files/caltech-101.zip?download=1\"\n\nos.makedirs(DATA_DIR, exist_ok=True)\n\nif not os.path.isdir(os.path.join(EXTRACT_DIR, \"101_ObjectCategories\")):\n    print(\"Downloading Caltech-101...\")\n\n    request = urllib.request.Request(\n        URL,\n        headers={\"User-Agent\": \"Mozilla/5.0\"}\n    )\n\n    with urllib.request.urlopen(request, timeout=60) as response:\n        with open(ZIP_PATH, \"wb\") as f:\n            shutil.copyfileobj(response, f)\n\n    print(\"Download complete. Extracting...\")\n\n    with zipfile.ZipFile(ZIP_PATH, \"r\") as z:\n        z.extractall(DATA_DIR)\n\n    print(\"Extraction complete.\")\n\nDATASET_DIR = os.path.join(EXTRACT_DIR, \"101_ObjectCategories\")\n\nif not os.path.isdir(DATASET_DIR):\n    raise FileNotFoundError(\n        f\"Expected folder not found: {DATASET_DIR}. \"\n        \"Inspect the extracted folder structure.\"\n    )\n\nbackground_dir = os.path.join(DATASET_DIR, \"BACKGROUND_Google\")\nif os.path.isdir(background_dir):\n    shutil.rmtree(background_dir)\n\ncategories = [\n    d for d in os.listdir(DATASET_DIR)\n    if os.path.isdir(os.path.join(DATASET_DIR, d))\n]\n\nprint(\"Dataset ready!\")\nprint(\"Location:\", DATASET_DIR)\nprint(\"Categories:\", len(categories))", "verify": "import os\nimport shutil\n\nDATASET_DIR = \"data/caltech101/101_ObjectCategories\"\n\nif not os.path.isdir(DATASET_DIR):\n    raise FileNotFoundError(\n        \"Dataset missing. Run the download cell first.\"\n    )\n\n# Remove the extra background clutter category.\nshutil.rmtree(\n    os.path.join(DATASET_DIR, \"BACKGROUND_Google\"),\n    ignore_errors=True\n)\n\ncategories = [\n    folder for folder in os.listdir(DATASET_DIR)\n    if os.path.isdir(os.path.join(DATASET_DIR, folder))\n]\n\nprint(\"Categories found:\", len(categories))\n\nif len(categories) != 101:\n    raise RuntimeError(\n        f\"Expected 101 categories, found {len(categories)}.\"\n    )\n\nimport os\nimport shutil\n\nDATASET_DIR = \"data/caltech101/101_ObjectCategories\"\n\nif not os.path.isdir(DATASET_DIR):\n    raise FileNotFoundError(\n        f\"Dataset not found at {DATASET_DIR}\"\n    )\n\n# Remove the background category if it exists\nbackground_dir = os.path.join(\n    DATASET_DIR, \"BACKGROUND_Google\"\n)\nif os.path.isdir(background_dir):\n    shutil.rmtree(background_dir)\n\ncategories = [\n    folder for folder in os.listdir(DATASET_DIR)\n    if os.path.isdir(os.path.join(DATASET_DIR, folder))\n]\n\nprint(\"Dataset verified!\")\nprint(\"Dataset path:\", DATASET_DIR)\nprint(\"Categories found:\", len(categories))\n\nassert len(categories) == 101, (\n    f\"Expected 101 categories, found {len(categories)}\"\n)", "imports": "import math\nimport time\nimport random\nimport glob\n\nimport numpy as np\nimport matplotlib.pyplot as plt\nfrom PIL import Image\nfrom tqdm.auto import tqdm\n\nimport torch\nimport torch.nn as nn\nfrom torch.utils.data import DataLoader\nfrom torchvision import datasets, transforms\nfrom torchvision.models import resnet50, ResNet50_Weights\n\nfrom sklearn.decomposition import PCA\nfrom sklearn.manifold import TSNE\nfrom sklearn.neighbors import NearestNeighbors\n\n%matplotlib inline\n\nSEED = 42\nrandom.seed(SEED); np.random.seed(SEED); torch.manual_seed(SEED)\n\ndevice = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\nprint(\"Running on:\", device)", "incep": "class InceptionModule(nn.Module):\n    \"\"\"Four parallel branches, concatenated along the channel dimension.\"\"\"\n\n    def __init__(self, in_ch, f1, f3_reduce, f3, f5_reduce, f5, pool_proj):\n        super().__init__()\n        # Branch 1: 1x1 conv\n        self.branch1 = nn.Sequential(\n            nn.Conv2d(in_ch, f1, kernel_size=1), nn.ReLU(inplace=True))\n        # Branch 2: 1x1 reduce, then 3x3 conv\n        self.branch3 = nn.Sequential(\n            nn.Conv2d(in_ch, f3_reduce, kernel_size=1), nn.ReLU(inplace=True),\n            nn.Conv2d(f3_reduce, f3, kernel_size=3, padding=1), nn.ReLU(inplace=True))\n        # Branch 3: 1x1 reduce, then 5x5 conv\n        self.branch5 = nn.Sequential(\n            nn.Conv2d(in_ch, f5_reduce, kernel_size=1), nn.ReLU(inplace=True),\n            nn.Conv2d(f5_reduce, f5, kernel_size=5, padding=2), nn.ReLU(inplace=True))\n        # Branch 4: 3x3 max pool (stride 1), then 1x1 projection\n        self.branch_pool = nn.Sequential(\n            nn.MaxPool2d(kernel_size=3, stride=1, padding=1),\n            nn.Conv2d(in_ch, pool_proj, kernel_size=1), nn.ReLU(inplace=True))\n\n    def forward(self, x):\n        outputs = [self.branch1(x), self.branch3(x), self.branch5(x), self.branch_pool(x)]\n        return torch.cat(outputs, dim=1)\n\nmodule = InceptionModule(192, 64, 96, 128, 16, 32, 32)\nx = torch.randn(1, 192, 28, 28)\nprint(\"Input :\", tuple(x.shape))\nprint(\"Output:\", tuple(module(x).shape))", "count": "def count_params(module):\n    return sum(p.numel() for p in module.parameters())\n\nin_ch, reduced, out_ch = 192, 16, 32\ndirect = nn.Conv2d(in_ch, out_ch, 5, padding=2, bias=False)\nwith_reduction = nn.Sequential(\n    nn.Conv2d(in_ch, reduced, 1, bias=False),\n    nn.Conv2d(reduced, out_ch, 5, padding=2, bias=False),\n)\np_direct, p_reduced = count_params(direct), count_params(with_reduction)\nprint(f\"Direct 5x5 conv      : {p_direct:,} weights\")\nprint(f\"1x1 reduce, then 5x5 : {p_reduced:,} weights\")\nprint(f\"Reduction            : {p_direct / p_reduced:.1f}x fewer\")", "gradc": "blocks, local_grad = 10, 0.1\nprint(f\"Plain network   : gradient factor = {local_grad ** blocks:.1e}\")\nprint(f\"With skip links : gradient factor = {(1 + local_grad) ** blocks:.2f}\")", "idb": "class IdentityBlock(nn.Module):\n    \"\"\"Bottleneck residual block where input and output shapes match.\"\"\"\n\n    def __init__(self, channels, filters):\n        super().__init__()\n        f1, f2, f3 = filters\n        assert f3 == channels, \"The last filter count must equal the input channels\"\n        self.block = nn.Sequential(\n            nn.Conv2d(channels, f1, kernel_size=1, bias=False),     # 1x1: reduce channels\n            nn.BatchNorm2d(f1),\n            nn.ReLU(inplace=True),\n            nn.Conv2d(f1, f2, kernel_size=3, padding=1, bias=False),  # 3x3: the \"real\" convolution\n            nn.BatchNorm2d(f2),\n            nn.ReLU(inplace=True),\n            nn.Conv2d(f2, f3, kernel_size=1, bias=False),           # 1x1: expand channels back\n            nn.BatchNorm2d(f3),\n        )\n        self.relu = nn.ReLU(inplace=True)\n\n    def forward(self, x):\n        return self.relu(self.block(x) + x)     # add the skip connection, then ReLU", "cvb": "class ConvBlock(nn.Module):\n    \"\"\"Bottleneck residual block with a 1x1 convolution on the skip path.\"\"\"\n\n    def __init__(self, in_channels, filters, stride):\n        super().__init__()\n        f1, f2, f3 = filters\n        self.block = nn.Sequential(\n            nn.Conv2d(in_channels, f1, kernel_size=1, stride=stride, bias=False),\n            nn.BatchNorm2d(f1),\n            nn.ReLU(inplace=True),\n            nn.Conv2d(f1, f2, kernel_size=3, padding=1, bias=False),\n            nn.BatchNorm2d(f2),\n            nn.ReLU(inplace=True),\n            nn.Conv2d(f2, f3, kernel_size=1, bias=False),\n            nn.BatchNorm2d(f3),\n        )\n        # Skip path: 1x1 conv (same stride) so the shapes match before the addition\n        self.shortcut = nn.Sequential(\n            nn.Conv2d(in_channels, f3, kernel_size=1, stride=stride, bias=False),\n            nn.BatchNorm2d(f3),\n        )\n        self.relu = nn.ReLU(inplace=True)\n\n    def forward(self, x):\n        return self.relu(self.block(x) + self.shortcut(x))\n\nx = torch.randn(1, 256, 56, 56)\nprint(\"IdentityBlock:\", tuple(IdentityBlock(256, [64, 64, 256])(x).shape))\nprint(\"ConvBlock    :\", tuple(ConvBlock(256, [128, 128, 512], stride=2)(x).shape))", "r50": "class ResNet50FromScratch(nn.Module):\n    \"\"\"ResNet-50 without the classifier: returns a 2048-d feature vector.\"\"\"\n\n    def __init__(self):\n        super().__init__()\n        self.stem = nn.Sequential(\n            nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False),\n            nn.BatchNorm2d(64),\n            nn.ReLU(inplace=True),\n            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),\n        )\n        # (input channels, filters, stride of the first block, number of blocks)\n        stage_config = [\n            (64,   [64, 64, 256],    1, 3),\n            (256,  [128, 128, 512],  2, 4),\n            (512,  [256, 256, 1024], 2, 6),\n            (1024, [512, 512, 2048], 2, 3),\n        ]\n        stages = []\n        for in_ch, filters, stride, n_blocks in stage_config:\n            blocks = [ConvBlock(in_ch, filters, stride)]                                   # first block changes the shape\n            blocks += [IdentityBlock(filters[2], filters) for _ in range(n_blocks - 1)]    # the rest keep it\n            stages.append(nn.Sequential(*blocks))\n        self.stages = nn.Sequential(*stages)\n        self.pool = nn.AdaptiveAvgPool2d(1)       # global average pooling\n\n    def forward(self, x):\n        x = self.stages(self.stem(x))\n        return torch.flatten(self.pool(x), 1)", "r50t": "scratch_model = ResNet50FromScratch().eval()\nx = torch.randn(1, 3, 224, 224)\nwith torch.no_grad():\n    x = scratch_model.stem(x); print(\"stem   :\", tuple(x.shape))\n    for i, stage in enumerate(scratch_model.stages, 1):\n        x = stage(x); print(f\"stage {i}:\", tuple(x.shape))\n    print(\"output :\", tuple(torch.flatten(scratch_model.pool(x), 1).shape), \"<- the embedding\")\n\nreference = resnet50(weights=None)\nref_params = sum(p.numel() for n, p in reference.named_parameters() if not n.startswith(\"fc.\"))\nprint(f\"\\nOur parameters      : {count_params(scratch_model):,}\")\nprint(f\"Reference parameters: {ref_params:,}\")", "load": "weights = ResNet50_Weights.IMAGENET1K_V1\n\nmodel = resnet50(weights=weights)\nmodel.fc = nn.Identity()          # drop the classifier, keep the 2048-d features\nmodel = model.to(device).eval()\n\nprint(f\"Parameters: {count_params(model) / 1e6:.1f}M\")", "prep": "preprocess = transforms.Compose([\n    transforms.Resize((224, 224)),\n    transforms.ToTensor(),\n    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),\n])", "one": "@torch.no_grad()\ndef extract_features(img_path, model):\n    \"\"\"Return an L2-normalized feature vector for one image.\"\"\"\n    img = Image.open(img_path).convert(\"RGB\")\n    x = preprocess(img).unsqueeze(0).to(device)       # add the batch dimension\n    features = model(x).squeeze(0).cpu().numpy()\n    return features / np.linalg.norm(features)\n\ndef avg_time(fn, repeats=20):\n    \"\"\"Average wall-clock seconds per call (after one warm-up call).\"\"\"\n    fn()\n    start = time.perf_counter()\n    for _ in range(repeats):\n        fn()\n    return (time.perf_counter() - start) / repeats\n\nIMG_PATH = sorted(\n    glob.glob(\"data/caltech101/101_ObjectCategories/*/*.jpg\")\n)[0]\nfeatures = extract_features(IMG_PATH, model)\nprint(\"Image:\", IMG_PATH)\nprint(\"Length of the feature vector:\", len(features), \"| norm:\", round(float(np.linalg.norm(features)), 3))\nprint(f\"Time per image (read + preprocess + forward pass): {avg_time(lambda: extract_features(IMG_PATH, model)) * 1000:.1f} ms\")", "loader": "import os\nimport numpy as np\nfrom torch.utils.data import DataLoader\nfrom torchvision import datasets\n\n# Correct directory: contains the 101 image-category folders\nroot_dir = \"data/caltech101/101_ObjectCategories\"\nBATCH_SIZE = 128\n\n# Remove macOS metadata folder if it exists\nmacosx_dir = os.path.join(root_dir, \"__MACOSX\")\n\nif os.path.isdir(macosx_dir):\n    import shutil\n    shutil.rmtree(macosx_dir)\n\n# Load the dataset\ndataset = datasets.ImageFolder(\n    root_dir,\n    transform=preprocess\n)\n\nloader = DataLoader(\n    dataset,\n    batch_size=BATCH_SIZE,\n    shuffle=False,\n    num_workers=2\n)\n\nfilenames = [\n    path for path, _ in dataset.samples\n]\n\nclass_names = dataset.classes\nclass_ids = np.array(dataset.targets)\n\nprint(f\"Found {len(filenames)} images in {len(class_names)} classes\")\nprint(\"First 5 classes:\", class_names[:5])\nprint(\"First image:\", filenames[0] if filenames else \"None\")", "batch": "start_time = time.time()\nbatches = []\nwith torch.no_grad():\n    for images, _ in tqdm(loader):\n        batches.append(model(images.to(device)).cpu().numpy())\nelapsed = time.time() - start_time\n\nfeature_list = np.concatenate(batches)\nfeature_list = feature_list / np.linalg.norm(feature_list, axis=1, keepdims=True)    # L2-normalize\nfeature_list = feature_list.astype(np.float32)\n\nnum_images, num_features_per_image = feature_list.shape\nprint(\"Shape of feature_list =\", feature_list.shape)\nprint(f\"Time taken            = {elapsed / 60:.2f} min  ({elapsed / num_images * 1000:.1f} ms per image)\")", "save": "os.makedirs(\"data\", exist_ok=True)\nnp.savez(\"data/caltech101_resnet50.npz\", features=feature_list, class_ids=class_ids,\n         filenames=np.array(filenames), class_names=np.array(class_names))", "knn": "neighbors = NearestNeighbors(n_neighbors=5, algorithm=\"brute\", metric=\"euclidean\").fit(feature_list)\n\nrandom_index = random.randrange(num_images)\ndistances, indices = neighbors.kneighbors(feature_list[random_index:random_index + 1])\nprint(\"Query index :\", random_index)\nprint(\"Neighbours  :\", indices[0], \" (first one is the query itself)\")\nprint(\"Distances   :\", np.round(distances[0], 3))", "show": "def classname(path):\n    return os.path.basename(os.path.dirname(path))\n\ndef plot_images(paths, distances, columns=5):\n    \"\"\"Show the query (first path) and its similar images.\"\"\"\n    rows = math.ceil(len(paths) / columns)\n    plt.figure(figsize=(4 * columns, 4.3 * rows))\n    for i, path in enumerate(paths):\n        ax = plt.subplot(rows, columns, i + 1)\n        title = \"Query\\n\" + classname(path) if i == 0 else f\"{classname(path)}\\ndistance {distances[i]:.2f}\"\n        ax.set_title(title); ax.axis(\"off\")\n        ax.imshow(Image.open(path).convert(\"RGB\"))\n    plt.show()\n\ndef search(query_idx, k=4):\n    \"\"\"Indices and distances of the k nearest images, excluding the query itself.\"\"\"\n    d, idx = neighbors.kneighbors(feature_list[query_idx:query_idx + 1], n_neighbors=k + 1)\n    d, idx = d[0], idx[0]\n    keep = idx != query_idx\n    return idx[keep][:k], d[keep][:k]\n\nfor q in [random_index] + [random.randrange(num_images) for _ in range(2)]:\n    idx, dist = search(q, k=4)\n    plot_images([filenames[q]] + [filenames[i] for i in idx], np.concatenate([[0.0], dist]))", "dists": "sample = np.random.choice(num_images, size=min(1000, num_images), replace=False)\nd_sample, _ = neighbors.kneighbors(feature_list[sample], n_neighbors=5)    # column 0 is the query itself\n\na = np.random.randint(0, num_images, 5000)\nb = np.random.randint(0, num_images, 5000)\npairs = a != b\nd_random = np.linalg.norm(feature_list[a[pairs]] - feature_list[b[pairs]], axis=1)\n\nprint(f\"Median distance to the 1st nearest neighbour: {np.median(d_sample[:, 1]):.3f}\")\nprint(f\"Median distance to the 4th nearest neighbour: {np.median(d_sample[:, 4]):.3f}\")\nprint(f\"Median distance between random image pairs  : {np.median(d_random):.3f}\")", "prec": "def neighbour_hits(features, labels, k=4):\n    \"\"\"For every image, count how many of its k nearest neighbours share its class.\"\"\"\n    nn_model = NearestNeighbors(n_neighbors=k + 1, algorithm=\"brute\", metric=\"euclidean\").fit(features)\n    start = time.time()\n    _, idx = nn_model.kneighbors(features)               # all queries in one call\n    elapsed = time.time() - start\n    hits, neighbour_ids = np.zeros(len(features), dtype=int), []\n    for i, row in enumerate(idx):\n        row = row[row != i][:k]                           # drop the query itself\n        hits[i] = np.sum(labels[row] == labels[i])\n        neighbour_ids.append(row)\n    return hits, np.array(neighbour_ids), elapsed\n\ndef calculate_accuracy(features, labels, k=4):\n    \"\"\"Return (precision@k in %, search time in seconds for all queries).\"\"\"\n    hits, _, elapsed = neighbour_hits(features, labels, k)\n    return round(100.0 * hits.sum() / (k * len(features)), 2), elapsed\n\nacc_original, time_original = calculate_accuracy(feature_list, class_ids)\nprint(f\"Precision@4 on the original {num_features_per_image}-d features: {acc_original}%  \"\n      f\"(all {num_images} queries took {time_original:.1f} s)\")", "fail": "hits, neighbour_ids, _ = neighbour_hits(feature_list, class_ids, k=4)\n\nrows = []\nfor c, name in enumerate(class_names):\n    members = np.where(class_ids == c)[0]\n    score = hits[members].mean() / 4 * 100\n    wrong = class_ids[neighbour_ids[members].ravel()]\n    wrong = wrong[wrong != c]\n    confused_with = class_names[np.bincount(wrong).argmax()] if len(wrong) else \"-\"\n    rows.append((score, name, confused_with, len(members)))\nrows.sort()\n\nprint(f'{\"class\":<18}{\"images\":>7}{\"score %\":>9}   most often confused with')\nfor score, name, confused_with, n in rows[:8]:\n    print(f\"{name:<18}{n:>7}{score:>9.1f}   {confused_with}\")\n\ncomplete_misses = np.where(hits == 0)[0]\nprint(f\"\\nQueries where all 4 neighbours are from another class: {len(complete_misses)} ({100 * len(complete_misses) / num_images:.1f}%)\")\n\nif len(complete_misses):\n    for q in np.random.choice(complete_misses, size=min(2, len(complete_misses)), replace=False):\n        ids = neighbour_ids[q]\n        plot_images([filenames[q]] + [filenames[i] for i in ids],\n                    np.concatenate([[0.0], np.linalg.norm(feature_list[ids] - feature_list[q], axis=1)]))", "pca": "pca = PCA(n_components=200, random_state=SEED).fit(feature_list)\nZ = pca.transform(feature_list)                       # (N, 200); columns are ordered by explained variance\n\ncumulative = np.cumsum(pca.explained_variance_ratio_) * 100\nplt.figure(figsize=(6, 3.5))\nplt.plot(range(1, 201), cumulative); plt.xlabel(\"number of PCA components\"); plt.ylabel(\"variance kept (%)\")\nplt.axvline(150, color=\"red\", linestyle=\":\"); plt.grid(alpha=0.3); plt.show()\nprint(f\"Variance kept by 150 components: {cumulative[149]:.1f}%\")", "dims": "pca_dimensions = [2, 5, 10, 20, 50, 100, 150, 200]\npca_results = {}     # dimensions -> (precision@4 %, search time in s)\nfor d in pca_dimensions:\n    pca_results[d] = calculate_accuracy(Z[:, :d], class_ids)\n    print(f\"PCA dimensions = {d:>3}   precision@4 = {pca_results[d][0]:>5} %   search time = {pca_results[d][1]:.1f} s\")\n\nplt.figure(figsize=(7, 4))\nplt.plot(pca_dimensions, [pca_results[d][0] for d in pca_dimensions], marker=\"o\")\nplt.axhline(acc_original, color=\"gray\", linestyle=\"--\", label=f\"original {num_features_per_image}-d features\")\nplt.axvline(150, color=\"red\", linestyle=\":\", label=\"150 dimensions\")\nplt.xscale(\"log\"); plt.xlabel(\"PCA dimensions\"); plt.ylabel(\"precision@4 (%)\"); plt.legend(); plt.show()\n\nn_dims = 150\nfeature_list_compressed = np.ascontiguousarray(Z[:, :n_dims], dtype=np.float32)\nacc_pca150 = pca_results[150][0]\nprint(\"Compressed shape:\", feature_list_compressed.shape, \"| precision@4:\", acc_pca150, \"% vs\", acc_original, \"% originally\")", "tsne": "sample_size = min(2500, num_images)\nsel = np.random.choice(num_images, size=sample_size, replace=False)\ntsne_results = TSNE(n_components=2, init=\"pca\", learning_rate=\"auto\", random_state=SEED).fit_transform(feature_list_compressed[sel])\n\nplt.figure(figsize=(8, 6))\nsc = plt.scatter(tsne_results[:, 0], tsne_results[:, 1], c=class_ids[sel], cmap=\"nipy_spectral\", s=8)\nplt.colorbar(sc, label=\"class id\"); plt.show()", "tsne2": "from matplotlib.offsetbox import OffsetImage, AnnotationBbox\n\ndef show_tsne(x, y, paths, zoom=0.3):\n    fig, axis = plt.subplots(figsize=(16, 16))\n    for x0, y0, path in zip(x, y, paths):\n        image = Image.open(path).convert(\"RGB\")\n        image.thumbnail((100, 100), Image.LANCZOS)\n        axis.add_artist(AnnotationBbox(OffsetImage(image, zoom=zoom), (x0, y0), frameon=False))\n    axis.update_datalim(np.column_stack([x, y])); axis.autoscale(); axis.axis(\"off\")\n    plt.show()\n\nn_show = min(300, sample_size)\nshow_tsne(tsne_results[:n_show, 0], tsne_results[:n_show, 1], [filenames[i] for i in sel[:n_show]])", "brute": "class BruteForce:\n    \"\"\"Exact nearest neighbours: distance from the query to every stored vector.\"\"\"\n    def __init__(self, X):\n        self.X = X\n        self.sq_norms = (X ** 2).sum(axis=1)\n\n    def query(self, q, k=5):\n        d2 = self.sq_norms - 2 * self.X @ q          # squared distance up to the constant |q|^2\n        idx = np.argpartition(d2, k)[:k]             # k smallest, unordered\n        return idx[np.argsort(d2[idx])]              # sort those k\n\nbrute_full = BruteForce(feature_list)\nbrute_pca = BruteForce(feature_list_compressed)\nq_full, q_pca = feature_list[random_index], feature_list_compressed[random_index]\n\nt_brute_full = avg_time(lambda: brute_full.query(q_full), repeats=200)\nt_brute_pca = avg_time(lambda: brute_pca.query(q_pca), repeats=200)\nprint(f\"Brute force, {num_features_per_image}-d: {t_brute_full * 1000:.3f} ms per query\")\nprint(f\"Brute force, {n_dims}-d : {t_brute_pca * 1000:.3f} ms per query  ({t_brute_full / t_brute_pca:.1f}x faster)\")", "annoy": "!pip install -q annoy\n\nfrom annoy import AnnoyIndex\n\nn_trees = 40\nannoy_index = AnnoyIndex(n_dims, \"euclidean\")\n\nt0 = time.time()\nfor i in range(num_images):\n    annoy_index.add_item(i, feature_list_compressed[i])\nt1 = time.time()\nannoy_index.build(n_trees)\nt2 = time.time()\nannoy_index.save(\"data/caltech101index.ann\")\n\nprint(f\"Adding items          : {t1 - t0:.2f} s\")\nprint(f\"Building {n_trees} trees      : {t2 - t1:.2f} s\")", "annoyq": "u = AnnoyIndex(n_dims, \"euclidean\")\nu.load(\"data/caltech101index.ann\")\n\ndef annoy_neighbours(q_idx, k=5):\n    ids = u.get_nns_by_vector(feature_list_compressed[q_idx], k + 1)\n    return [i for i in ids if i != q_idx][:k]\n\nprint(\"Annoy      :\", annoy_neighbours(random_index))\nprint(\"Brute force:\", [int(i) for i in brute_pca.query(q_pca, 6) if i != random_index][:5])\n\nqueries = np.random.choice(num_images, size=min(500, num_images), replace=False)\n\nfound = 0\nfor q in queries:\n    truth = [i for i in brute_pca.query(feature_list_compressed[q], 6) if i != q][:5]\n    found += len(set(annoy_neighbours(q)) & set(truth))\nrecall = found / (5 * len(queries))\n\nt_annoy = avg_time(lambda: u.get_nns_by_vector(feature_list_compressed[random_index], 5), repeats=200)\nprint(f\"Recall@5 against exact search: {recall * 100:.1f}%\")\nprint(f\"Annoy query time             : {t_annoy * 1e6:.1f} microseconds\")", "concl": "print(f'{\"Method\":<26}{\"Time per query\":>16}   Quality')\nprint(f'{\"Brute force, 2048-d\":<26}{t_brute_full * 1000:>13.3f} ms   precision@4 = {acc_original}%')\nprint(f'{\"Brute force, PCA 150-d\":<26}{t_brute_pca * 1000:>13.3f} ms   precision@4 = {acc_pca150}%')\nprint(f'{\"Annoy, PCA 150-d\":<26}{t_annoy * 1000:>13.3f} ms   recall@5 = {recall * 100:.1f}% vs exact search')"};
+init();
+
+})();
+</script>
+</body>
+</html>
